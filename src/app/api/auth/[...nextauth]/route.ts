@@ -2,20 +2,9 @@ import NextAuth, { type NextAuthOptions } from "next-auth";
 import Google from "next-auth/providers/google";
 import { env } from "@/lib/env";
 
-// Required for static export
-export const dynamic = 'force-static';
-export const revalidate = false;
-
-// Generate static params for catch-all route
-export async function generateStaticParams() {
-  return [
-    { nextauth: ['callback'] },
-    { nextauth: ['signin'] },
-    { nextauth: ['signout'] },
-    { nextauth: ['session'] },
-    { nextauth: ['csrf'] },
-  ];
-}
+// Force dynamic rendering to prevent prerendering issues
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 const authOptions: NextAuthOptions = {
   providers: [

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 
-// Required for static export
-export const dynamic = 'force-static';
-export const revalidate = false;
+// Force dynamic rendering to prevent prerendering issues
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 interface WeatherData {
   date: string;
