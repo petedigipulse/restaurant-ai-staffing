@@ -6,15 +6,9 @@ const nextConfig: NextConfig = {
   output: 'export',
   // Disable all static optimization
   trailingSlash: false,
-  // Force dynamic rendering everywhere
-  dynamicParams: true,
   // Disable image optimization
   images: {
     unoptimized: true,
-  },
-  // Disable static generation
-  generateStaticParams: async () => {
-    return [];
   },
 };
 
