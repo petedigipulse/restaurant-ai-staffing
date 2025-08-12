@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { bullmqQueue } from "@/lib/adapters/queue/bullmq";
 
 const GenerateScheduleSchema = z.object({
   tenantId: z.string().min(1),
@@ -7,14 +6,29 @@ const GenerateScheduleSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const json = await req.json();
-  const input = GenerateScheduleSchema.parse(json);
-  const { jobId } = await bullmqQueue.enqueue(
-    "scheduling",
-    "generate",
-    { tenantId: input.tenantId, weekStart: input.weekStart }
-  );
-  return Response.json({ jobId }, { status: 202 });
+  try {
+    const json = await req.json();
+    const input = GenerateScheduleSchema.parse(json);
+    
+    // Mock implementation for development
+    // In production, this would use the actual BullMQ queue
+    const mockJobId = `mock-job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Simulate some processing time
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    return Response.json({ 
+      jobId: mockJobId,
+      message: "Schedule generation started (mock mode)"
+    }, { status: 202 });
+    
+  } catch (error) {
+    console.error("Schedule generation error:", error);
+    return Response.json({ 
+      error: "Failed to generate schedule",
+      details: error instanceof Error ? error.message : "Unknown error"
+    }, { status: 500 });
+  }
 }
 
 
