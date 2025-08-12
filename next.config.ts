@@ -2,10 +2,6 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  experimental: {
-    // Disable static generation to prevent prerendering issues
-    staticPageGenerationTimeout: 0,
-  },
   // Force all pages to be dynamic to prevent prerendering
   generateStaticParams: async () => {
     return [];
@@ -14,6 +10,8 @@ const nextConfig: NextConfig = {
   trailingSlash: false,
   // Force dynamic rendering
   dynamicParams: true,
+  // Disable static generation
+  output: 'standalone',
 };
 
 export default nextConfig;
