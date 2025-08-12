@@ -81,5 +81,6 @@ export default function DashboardHome() {
 // Force dynamic rendering and disable static generation
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+export const unstable_noStore = true;
 
 

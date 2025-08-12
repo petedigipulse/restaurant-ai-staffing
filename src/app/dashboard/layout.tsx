@@ -62,6 +62,11 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Force dynamic rendering and disable static generation
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const unstable_noStore = true;
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <ErrorBoundary>

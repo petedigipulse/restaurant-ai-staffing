@@ -2,16 +2,20 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // Force all pages to be dynamic to prevent prerendering
+  // Completely disable static generation
+  output: 'export',
+  // Disable all static optimization
+  trailingSlash: false,
+  // Force dynamic rendering everywhere
+  dynamicParams: true,
+  // Disable image optimization
+  images: {
+    unoptimized: true,
+  },
+  // Disable static generation
   generateStaticParams: async () => {
     return [];
   },
-  // Disable static optimization for problematic pages
-  trailingSlash: false,
-  // Force dynamic rendering
-  dynamicParams: true,
-  // Disable static generation
-  output: 'standalone',
 };
 
 export default nextConfig;
