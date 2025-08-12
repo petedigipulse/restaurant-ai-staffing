@@ -78,7 +78,8 @@ export default function DashboardHome() {
   );
 }
 
-// Force dynamic rendering
+// Force dynamic rendering and disable static generation
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 
