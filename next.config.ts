@@ -9,9 +9,8 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
   // Force all pages to be dynamic
-  experimental: {
-    // Disable static generation
-    staticPageGenerationTimeout: 0,
+  generateStaticParams: async () => {
+    return [];
   },
 };
 
