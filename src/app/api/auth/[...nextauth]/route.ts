@@ -2,6 +2,10 @@ import NextAuth, { type NextAuthOptions } from "next-auth";
 import Google from "next-auth/providers/google";
 import { env } from "@/lib/env";
 
+// Required for static export
+export const dynamic = 'force-static';
+export const revalidate = false;
+
 const authOptions: NextAuthOptions = {
   providers: [
     // Only add Google provider if credentials are available

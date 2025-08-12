@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 
+// Required for static export
+export const dynamic = 'force-static';
+export const revalidate = false;
+
 export async function GET() {
   try {
     // In a real app, this would fetch data from your database

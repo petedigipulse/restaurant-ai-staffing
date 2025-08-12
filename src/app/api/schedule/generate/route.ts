@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+// Required for static export
+export const dynamic = 'force-static';
+export const revalidate = false;
+
 const GenerateScheduleSchema = z.object({
   tenantId: z.string().min(1),
   weekStart: z.string().min(1),
