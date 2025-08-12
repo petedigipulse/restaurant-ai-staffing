@@ -2,15 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // Disable all static optimization
+  // Simple configuration for Next.js 14
   trailingSlash: false,
-  // Disable image optimization
   images: {
     unoptimized: true,
-  },
-  // Disable static generation completely
-  generateStaticParams: async () => {
-    return [];
   },
 };
 

@@ -78,8 +78,6 @@ export default function DashboardHome() {
   );
 }
 
-// Simple static page to avoid prerendering issues
-export const dynamic = 'error';
-export const revalidate = false;
+
 
 
