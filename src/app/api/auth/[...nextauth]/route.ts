@@ -4,10 +4,13 @@ import { env } from "@/lib/env";
 
 const authOptions: NextAuthOptions = {
   providers: [
-    Google({
-      clientId: env.GOOGLE_CLIENT_ID!,
-      clientSecret: env.GOOGLE_CLIENT_SECRET!,
-    }),
+    // Only add Google provider if credentials are available
+    ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET ? [
+      Google({
+        clientId: env.GOOGLE_CLIENT_ID,
+        clientSecret: env.GOOGLE_CLIENT_SECRET,
+      })
+    ] : []),
   ],
   session: { strategy: "jwt" as const },
   callbacks: {

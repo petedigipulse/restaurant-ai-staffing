@@ -2,8 +2,8 @@ import { z } from "zod";
 
 const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  NEXTAUTH_URL: z.string().url().optional(),
-  NEXTAUTH_SECRET: z.string().min(1).optional(),
+  NEXTAUTH_URL: z.string().url().default("http://localhost:3000"),
+  NEXTAUTH_SECRET: z.string().min(1).default("fallback-secret-for-build"),
   GOOGLE_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
   PUSHER_APP_ID: z.string().optional(),
