@@ -2,13 +2,13 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // Disable static optimization to prevent prerendering issues
+  // Disable all static optimization
   trailingSlash: false,
   // Disable image optimization
   images: {
     unoptimized: true,
   },
-  // Force all pages to be dynamic
+  // Disable static generation completely
   generateStaticParams: async () => {
     return [];
   },
