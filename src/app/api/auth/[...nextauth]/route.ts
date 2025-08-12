@@ -6,6 +6,17 @@ import { env } from "@/lib/env";
 export const dynamic = 'force-static';
 export const revalidate = false;
 
+// Generate static params for catch-all route
+export async function generateStaticParams() {
+  return [
+    { nextauth: ['callback'] },
+    { nextauth: ['signin'] },
+    { nextauth: ['signout'] },
+    { nextauth: ['session'] },
+    { nextauth: ['csrf'] },
+  ];
+}
+
 const authOptions: NextAuthOptions = {
   providers: [
     // Only add Google provider if credentials are available
