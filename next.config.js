@@ -6,6 +6,11 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Prevent static generation issues
+  experimental: {
+    // Disable static generation for problematic routes
+    staticPageGenerationTimeout: 0,
+  },
 };
 
 module.exports = nextConfig;
