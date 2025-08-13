@@ -981,6 +981,80 @@ export default function SchedulePage() {
               
               {/* View Schedule Details Button */}
               <Button
+                onClick={() => {
+                  // Use the current schedule data instead of fetching from database
+                  if (schedule && schedule.length > 0) {
+                    // Create schedule object from current schedule state
+                    const currentSchedule = {
+                      id: 'current-schedule-' + Date.now(),
+                      week_start_date: new Date().toISOString().split('T')[0],
+                      shifts: schedule.reduce((acc, day) => {
+                        acc[day.day.toLowerCase().substring(0, 3)] = {
+                          lunch: {
+                            stations: day.lunch.stations.reduce((stationAcc, station) => {
+                              stationAcc[station.name] = {
+                                assignedStaff: station.assignedStaff || []
+                              };
+                              return stationAcc;
+                            }, {} as any)
+                          },
+                          dinner: {
+                            stations: day.dinner.stations.reduce((stationAcc, station) => {
+                              stationAcc[station.name] = {
+                                assignedStaff: station.assignedStaff || []
+                              };
+                              return stationAcc;
+                            }, {} as any)
+                          }
+                        };
+                        return acc;
+                      }, {} as any),
+                      total_labor_cost: 0, // Will be calculated from staff assignments
+                      total_hours: 0, // Will be calculated from staff assignments
+                      ai_generated: false, // Set based on whether AI was used
+                      created_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString()
+                    };
+                    
+                    // Calculate total labor cost and hours from current schedule
+                    let totalCost = 0;
+                    let totalHours = 0;
+                    
+                    schedule.forEach(day => {
+                      [day.lunch, day.dinner].forEach(shift => {
+                        shift.stations.forEach(station => {
+                          if (station.assignedStaff) {
+                            station.assignedStaff.forEach(staff => {
+                              // Calculate hours based on shift duration
+                              const shiftHours = shift.name === 'Lunch' ? 4 : 5; // Lunch: 4h, Dinner: 5h
+                              const hourlyWage = staff.hourly_wage || 25; // Default to $25 if not set
+                              totalCost += hourlyWage * shiftHours;
+                              totalHours += shiftHours;
+                            });
+                          }
+                        });
+                      });
+                    });
+                    
+                    currentSchedule.total_labor_cost = totalCost;
+                    currentSchedule.total_hours = totalHours;
+                    currentSchedule.ai_generated = aiOptimizationReport !== null; // Set based on AI usage
+                    
+                    console.log('📅 Using current schedule for details:', currentSchedule);
+                    handleViewScheduleDetails(currentSchedule);
+                  } else {
+                    setConflictAlert('No schedule data available. Please generate a schedule first.');
+                    setTimeout(() => setConflictAlert(null), 5000);
+                  }
+                }}
+                variant="outline"
+                className="px-6 py-3 rounded-lg font-semibold border-blue-600 text-blue-600 hover:bg-blue-50 transition-all duration-200"
+              >
+                View Current Schedule
+              </Button>
+              
+              {/* View Saved Schedule Details Button */}
+              <Button
                 onClick={async () => {
                   if (!organizationId) return;
                   
@@ -1009,9 +1083,9 @@ export default function SchedulePage() {
                   }
                 }}
                 variant="outline"
-                className="px-6 py-3 rounded-lg font-semibold border-blue-600 text-blue-600 hover:bg-blue-50 transition-all duration-200"
+                className="px-6 py-3 rounded-lg font-semibold border-green-600 text-green-600 hover:bg-green-50 transition-all duration-200"
               >
-                View Schedule Details
+                View Saved Schedule
               </Button>
             </div>
           </div>
