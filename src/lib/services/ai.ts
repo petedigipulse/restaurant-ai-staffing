@@ -25,7 +25,8 @@ export interface AIAnalysisResult {
 
 export interface ScheduleOptimizationRequest {
   organizationId: string;
-  weekStart: string;
+  startDate: string;
+  endDate: string;
   staffMembers: any[];
   historicalData: any[];
   weatherForecast: any;
@@ -263,7 +264,12 @@ export class AIService {
   private static buildScheduleOptimizationPrompt(request: ScheduleOptimizationRequest): string {
     const { staffMembers, historicalData, weatherForecast, businessRules } = request;
     
-    return `Please analyze the following restaurant data and generate an optimized staff schedule for the week starting ${request.weekStart}.
+    // Calculate the number of days in the schedule period
+    const startDate = new Date(request.startDate);
+    const endDate = new Date(request.endDate);
+    const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    
+    return `Please analyze the following restaurant data and generate an optimized staff schedule for the period from ${request.startDate} to ${request.endDate} (${daysDiff} days).
 
 STAFF MEMBERS (${staffMembers.length}):
 ${staffMembers.map(staff => {

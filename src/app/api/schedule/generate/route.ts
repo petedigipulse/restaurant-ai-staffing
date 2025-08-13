@@ -7,11 +7,12 @@ export const revalidate = false;
 
 export async function POST(req: Request) {
   try {
-    const { organizationId, weekStart, staffAssignments } = await req.json();
+    const { organizationId, weekStart, weekEnd, staffAssignments } = await req.json();
     
     console.log('Schedule generation request:', {
       organizationId,
       weekStart,
+      weekEnd,
       staffAssignmentsKeys: staffAssignments ? Object.keys(staffAssignments) : null,
       sampleDay: staffAssignments ? Object.keys(staffAssignments)[0] : null,
       sampleShift: staffAssignments ? staffAssignments[Object.keys(staffAssignments)[0]] : null

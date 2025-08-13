@@ -9,11 +9,11 @@ export async function POST(req: Request) {
   try {
     console.log('🚀 Starting AI-powered schedule optimization...');
     
-    const { organizationId, weekStart } = await req.json();
+    const { organizationId, startDate, endDate, staffMembers: requestStaffMembers, weatherData: requestWeatherData } = await req.json();
     
-    if (!organizationId || !weekStart) {
+    if (!organizationId || !startDate || !endDate) {
       return NextResponse.json({ 
-        error: "Organization ID and week start date are required" 
+        error: "Organization ID, start date, and end date are required" 
       }, { status: 400 });
     }
 
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       DatabaseService.getStaffForScheduling(organizationId),
       DatabaseService.getHistoricalDataForScheduling(organizationId, '30d'),
       DatabaseService.getBusinessRules(organizationId),
-      fetch(`/api/weather?city=Wellington&country=NZ`).then(res => res.json()).catch(() => null)
+      requestWeatherData || fetch(`/api/weather?city=Wellington&country=NZ`).then(res => res.json()).catch(() => null)
     ]);
 
     if (!staffMembers || staffMembers.length === 0) {
@@ -50,7 +50,8 @@ export async function POST(req: Request) {
     // Generate AI-optimized schedule
     const aiResult = await AIService.generateOptimizedSchedule({
       organizationId,
-      weekStart,
+      startDate,
+      endDate,
       staffMembers: transformedStaff,
       historicalData: historicalData || [],
       weatherForecast: weatherData || {},
@@ -98,7 +99,7 @@ export async function POST(req: Request) {
     // Save the AI-generated schedule to database
     const savedSchedule = await DatabaseService.createSchedule({
       organization_id: organizationId,
-      week_start_date: weekStart,
+      week_start_date: startDate, // Assuming week_start_date is the startDate for the new structure
       shifts: optimizedSchedule,
       total_labor_cost: totalLaborCost,
       total_hours: totalHours,
