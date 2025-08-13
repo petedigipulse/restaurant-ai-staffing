@@ -4,6 +4,7 @@ import { DatabaseService } from "@/lib/services/database";
 import { StaffMember } from "@/lib/supabase";
 import WeatherForecast from "./components/WeatherForecast";
 import ScheduleHistory from "./components/ScheduleHistory";
+import DateRangePicker from "./components/DateRangePicker";
 import { useSession } from "next-auth/react";
 import AIOptimizationReport from './components/AIOptimizationReport';
 import AIProgressTracker from './components/AIProgressTracker';
@@ -27,6 +28,7 @@ interface Station {
 
 interface ScheduleDay {
   day: string;
+  date: Date;
   lunch: Shift;
   dinner: Shift;
 }
@@ -41,6 +43,7 @@ export default function SchedulePage() {
   const [schedule, setSchedule] = useState<ScheduleDay[]>([
     {
       day: 'Mon',
+      date: new Date('2023-10-23'), // Example date for Monday
       lunch: {
         id: 'mon-lunch',
         name: 'Lunch',
@@ -66,6 +69,7 @@ export default function SchedulePage() {
     },
     {
       day: 'Tue',
+      date: new Date('2023-10-24'), // Example date for Tuesday
       lunch: {
         id: 'tue-lunch',
         name: 'Lunch',
@@ -91,6 +95,7 @@ export default function SchedulePage() {
     },
     {
       day: 'Wed',
+      date: new Date('2023-10-25'), // Example date for Wednesday
       lunch: {
         id: 'wed-lunch',
         name: 'Lunch',
@@ -116,6 +121,7 @@ export default function SchedulePage() {
     },
     {
       day: 'Thu',
+      date: new Date('2023-10-26'), // Example date for Thursday
       lunch: {
         id: 'thu-lunch',
         name: 'Lunch',
@@ -141,6 +147,7 @@ export default function SchedulePage() {
     },
     {
       day: 'Fri',
+      date: new Date('2023-10-27'), // Example date for Friday
       lunch: {
         id: 'fri-lunch',
         name: 'Lunch',
@@ -184,6 +191,57 @@ export default function SchedulePage() {
     updated_at: string;
   } | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [selectedStartDate, setSelectedStartDate] = useState<Date>(new Date());
+  const [selectedEndDate, setSelectedEndDate] = useState<Date>(new Date());
+  const [scheduleDays, setScheduleDays] = useState<ScheduleDay[]>([]);
+
+  // Generate schedule days based on selected date range
+  const generateScheduleDays = (startDate: Date, endDate: Date) => {
+    const days: ScheduleDay[] = [];
+    const currentDate = new Date(startDate);
+    
+    while (currentDate <= endDate) {
+      const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'short' });
+      
+      days.push({
+        day: dayName,
+        date: new Date(currentDate),
+        lunch: {
+          id: `${dayName.toLowerCase()}-lunch`,
+          name: 'Lunch',
+          time: '11:00-15:00',
+          stations: [
+            { id: `${dayName.toLowerCase()}-lunch-kitchen`, name: 'Kitchen', requiredCapacity: 2, assignedStaff: [], color: 'yellow' },
+            { id: `${dayName.toLowerCase()}-lunch-foh`, name: 'Front of House', requiredCapacity: 3, assignedStaff: [], color: 'yellow' },
+            { id: `${dayName.toLowerCase()}-lunch-bar`, name: 'Bar', requiredCapacity: 1, assignedStaff: [], color: 'yellow' },
+            { id: `${dayName.toLowerCase()}-lunch-host`, name: 'Host', requiredCapacity: 1, assignedStaff: [], color: 'yellow' }
+          ]
+        },
+        dinner: {
+          id: `${dayName.toLowerCase()}-dinner`,
+          name: 'Dinner',
+          time: '17:00-22:00',
+          stations: [
+            { id: `${dayName.toLowerCase()}-dinner-kitchen`, name: 'Kitchen', requiredCapacity: 3, assignedStaff: [], color: 'yellow' },
+            { id: `${dayName.toLowerCase()}-dinner-foh`, name: 'Front of House', requiredCapacity: 4, assignedStaff: [], color: 'yellow' },
+            { id: `${dayName.toLowerCase()}-dinner-bar`, name: 'Bar', requiredCapacity: 2, assignedStaff: [], color: 'yellow' },
+            { id: `${dayName.toLowerCase()}-dinner-host`, name: 'Host', requiredCapacity: 1, assignedStaff: [], color: 'yellow' }
+          ]
+        }
+      });
+      
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    setScheduleDays(days);
+  };
+
+  // Handle date range changes
+  const handleDateRangeChange = (startDate: Date, endDate: Date) => {
+    setSelectedStartDate(startDate);
+    setSelectedEndDate(endDate);
+    generateScheduleDays(startDate, endDate);
+  };
 
   // Load staff data from database
   useEffect(() => {
@@ -200,38 +258,44 @@ export default function SchedulePage() {
         setOrganizationId(currentOrgId);
         
         // Load staff members
-        const staff = await DatabaseService.getStaffMembers(currentOrgId);
-        setStaffMembers(staff || []);
+        const staffData = await DatabaseService.getStaffMembers(currentOrgId);
+        setStaffMembers(staffData);
         
-        // Set unassigned staff (all staff start as unassigned)
-        setUnassignedStaff(staff || []);
+        // Initialize schedule days with current week
+        const today = new Date();
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay() + 1); // Monday
         
-        // Load existing schedule data
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6); // Sunday
+        
+        setSelectedStartDate(weekStart);
+        setSelectedEndDate(weekEnd);
+        generateScheduleDays(weekStart, weekEnd);
+        
+        // Load existing schedule
         await loadExistingSchedule(currentOrgId);
         
-        // Set loading to false after data is loaded
         setIsLoading(false);
       } catch (error) {
         console.error('Error loading staff data:', error);
         setIsLoading(false);
       }
     };
-
+    
     loadStaffData();
   }, []);
 
   // Load existing schedule from database
   const loadExistingSchedule = async (orgId: string) => {
     try {
-      // Calculate current week start (Monday)
-      const today = new Date();
-      const weekStart = new Date(today);
-      weekStart.setDate(today.getDate() - today.getDay() + 1); // Monday
-      const weekStartString = weekStart.toISOString().split('T')[0];
+      // Use the selected date range instead of hardcoded current week
+      const startDateString = selectedStartDate.toISOString().split('T')[0];
+      const endDateString = selectedEndDate.toISOString().split('T')[0];
 
-      console.log('🔄 Loading existing schedule for week:', weekStartString);
+      console.log('🔄 Loading existing schedule for date range:', startDateString, 'to', endDateString);
       
-      const response = await fetch(`/api/schedule?organizationId=${orgId}`);
+      const response = await fetch(`/api/schedule?organizationId=${orgId}&startDate=${startDateString}&endDate=${endDateString}`);
       if (response.ok) {
         const existingSchedule = await response.json();
         console.log('📅 Existing schedule data:', existingSchedule);
@@ -240,7 +304,7 @@ export default function SchedulePage() {
           console.log('🔍 Found shifts data:', existingSchedule.shifts);
           
           // Use the transformed data directly from the API
-          const transformedSchedule = schedule.map(day => {
+          const transformedSchedule = scheduleDays.map(day => {
             const dbDay = existingSchedule.shifts[day.day]; // Use exact day name (Mon, Tue, etc.)
             console.log(`🔍 Processing day ${day.day}:`, dbDay);
             
@@ -317,7 +381,7 @@ export default function SchedulePage() {
                     console.log(`🔍 Dinner station ${station.name}:`, dbStation);
                     
                     if (dbStation?.assignedStaff && Array.isArray(dbStation.assignedStaff)) {
-                      console.log(`✅ Found ${dbStation.assignedStaff.length} assigned staff for dinner ${station.name}:`, dbStation.assignedStaff);
+                      console.log(`✅ Found ${dbStation.assignedStaff.length} assigned staff for dinner:`, dbStation.assignedStaff);
                       
                       const assignedStaff = dbStation.assignedStaff.map((dbStaff: any) => {
                         // First try to find by UUID ID
@@ -336,14 +400,14 @@ export default function SchedulePage() {
                           console.log(`✅ Found matching staff member for dinner:`, staffMember);
                           return staffMember;
                         } else {
-                          console.log(`⚠️ Dinner staff member not found in staffMembers, creating fallback:`, dbStaff);
+                          console.log(`⚠️ Staff member not found in staffMembers, creating fallback:`, dbStaff);
                           return {
                             id: dbStaff.id,
                             first_name: dbStaff.first_name || dbStaff.name || 'Unknown',
                             last_name: dbStaff.last_name || '',
                             role: dbStaff.role || 'Staff',
                             performance_score: 80,
-                            availability: { monday: { available: true }, tuesday: { available: true }, wednesday: { available: true }, thursday: { available: true }, friday: { available: true } },
+                            availability: { monday: { available: true }, tuesday: { available: true }, wednesday: { available: true }, thursday: { available: true }, friday: { available:true } },
                             stations: [station.name],
                             hourly_wage: dbStaff.hourly_wage || 25,
                             organization_id: orgId,
@@ -359,7 +423,7 @@ export default function SchedulePage() {
                         }
                       });
                       
-                      console.log(`🎯 Final assigned staff for dinner ${station.name}:`, assignedStaff);
+                      console.log(`🎯 Final assigned staff for dinner:`, assignedStaff);
                       
                       return {
                         ...station,
@@ -373,27 +437,15 @@ export default function SchedulePage() {
                   })
                 }
               };
-            } else {
-              console.log(`❌ No data found for day ${day.day}`);
             }
             return day;
           });
           
-          console.log('✅ Final transformed schedule:', transformedSchedule);
-          setSchedule(transformedSchedule);
-          
-          // Update station colors after loading
-          setTimeout(() => {
-            updateStationColors();
-          }, 100);
-        } else {
-          console.log('❌ No shifts data found in schedule response');
+          setScheduleDays(transformedSchedule);
         }
-      } else {
-        console.error('❌ Failed to fetch schedule:', response.status);
       }
     } catch (error) {
-      console.error('Error loading existing schedule:', error);
+      console.error('❌ Error loading existing schedule:', error);
     }
   };
 
@@ -446,7 +498,7 @@ export default function SchedulePage() {
     }
 
     // Add staff to station
-    const updatedSchedule = schedule.map(scheduleDay => {
+    const updatedSchedule = scheduleDays.map(scheduleDay => {
       if (scheduleDay.day === day) {
         const shift = shiftType === 'lunch' ? scheduleDay.lunch : scheduleDay.dinner;
         const updatedShift = {
@@ -470,7 +522,7 @@ export default function SchedulePage() {
       return scheduleDay;
     });
 
-    setSchedule(updatedSchedule);
+    setScheduleDays(updatedSchedule);
 
     // Remove staff from unassigned list
     setUnassignedStaff(prev => prev.filter(staff => staff.id !== draggedStaff.id));
@@ -487,7 +539,7 @@ export default function SchedulePage() {
   };
 
   const removeStaffFromStation = (staffId: string, stationId: string, day: string, shiftType: 'lunch' | 'dinner') => {
-    const updatedSchedule = schedule.map(scheduleDay => {
+    const updatedSchedule = scheduleDays.map(scheduleDay => {
       if (scheduleDay.day === day) {
         const shift = shiftType === 'lunch' ? scheduleDay.lunch : scheduleDay.dinner;
         const updatedShift = {
@@ -511,10 +563,10 @@ export default function SchedulePage() {
       return scheduleDay;
     });
 
-    setSchedule(updatedSchedule);
+    setScheduleDays(updatedSchedule);
 
     // Add staff back to unassigned list
-    const staffToAdd = schedule
+    const staffToAdd = scheduleDays
       .find(d => d.day === day)?.[shiftType === 'lunch' ? 'lunch' : 'dinner']
       ?.stations.find(s => s.id === stationId)
       ?.assignedStaff.find(s => s.id === staffId);
@@ -528,7 +580,7 @@ export default function SchedulePage() {
   };
 
   const updateStationColors = () => {
-    setSchedule(prevSchedule => 
+    setScheduleDays(prevSchedule => 
       prevSchedule.map(day => ({
         ...day,
         lunch: {
@@ -570,21 +622,24 @@ export default function SchedulePage() {
   };
 
   const generateAISchedule = async () => {
-    if (!organizationId) {
-      setConflictAlert('Organization ID not found. Please refresh the page.');
-      return;
-    }
-
+    if (!organizationId) return;
+    
     setIsGeneratingAI(true);
-    setShowAIProgress(true); // Show progress tracker
+    setShowAIProgress(true);
+    setAiProgress(0);
     
     try {
-      // Calculate current week start (Monday)
-      const today = new Date();
-      const weekStart = new Date(today);
-      weekStart.setDate(today.getDate() - today.getDay() + 1); // Monday
-      const weekStartString = weekStart.toISOString().split('T')[0];
-
+      // Simulate AI progress
+      const progressInterval = setInterval(() => {
+        setAiProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(progressInterval);
+            return 100;
+          }
+          return prev + 10;
+        });
+      }, 500);
+      
       const response = await fetch('/api/ai/schedule/optimize', {
         method: 'POST',
         headers: {
@@ -592,117 +647,148 @@ export default function SchedulePage() {
         },
         body: JSON.stringify({
           organizationId,
-          weekStart: weekStartString,
-        }),
+          startDate: selectedStartDate.toISOString().split('T')[0],
+          endDate: selectedEndDate.toISOString().split('T')[0],
+          staffMembers,
+          weatherData: null // Will be integrated later
+        })
       });
 
+      clearInterval(progressInterval);
+      setAiProgress(100);
+      
       if (response.ok) {
         const result = await response.json();
+        console.log('AI Schedule Result:', result);
         
-        if (result.success && result.schedule) {
-          // Store the AI optimization report
-          setAiOptimizationReport({
-            reasoning: result.reasoning || 'AI analysis completed successfully.',
-            expectedEfficiency: result.metrics?.expectedEfficiency || 85,
-            costSavings: result.metrics?.costSavings || 0,
-            totalLaborCost: result.metrics?.totalLaborCost || 0,
-            totalHours: result.metrics?.totalHours || 0,
-            recommendations: result.recommendations || [],
-            nextSteps: result.nextSteps || [],
-            aiCost: result.aiCost || 0
-          });
-
-          // Update the schedule with AI-generated assignments
-          const aiSchedule = result.schedule;
-          const updatedSchedule = schedule.map(day => {
-            const aiDay = aiSchedule[day.day.toLowerCase()];
-            if (aiDay) {
-              return {
-                ...day,
-                lunch: {
-                  ...day.lunch,
-                  stations: day.lunch.stations.map(station => {
-                    const aiStation = aiDay.lunch?.stations?.[station.name.toLowerCase()];
-                    if (aiStation?.assignedStaff) {
-                      const assignedStaff = aiStation.assignedStaff.map((aiStaff: any) => {
-                        const staffMember = staffMembers.find(s => s.id === aiStaff.id);
-                        return staffMember || {
-                          id: aiStaff.id,
-                          first_name: aiStaff.first_name,
-                          last_name: aiStaff.last_name,
-                          role: aiStaff.role,
-                          performance_score: 80,
-                          availability: { monday: { available: true }, tuesday: { available: true }, wednesday: { available: true }, thursday: { available: true }, friday: { available: true } },
-                          stations: [station.name],
-                          hourly_wage: 25,
-                          conflicts: []
-                        };
-                      });
-                      
-                      return {
-                        ...station,
-                        assignedStaff,
-                        color: (assignedStaff.length >= station.requiredCapacity ? 'green' : 'yellow') as 'green' | 'yellow' | 'red'
+        // Store the AI optimization report
+        setAiOptimizationReport({
+          reasoning: result.reasoning || 'AI optimization completed successfully.',
+          expectedEfficiency: result.metrics?.expectedEfficiency || 85,
+          costSavings: result.metrics?.costSavings || 0,
+          totalLaborCost: result.metrics?.totalLaborCost || 0,
+          totalHours: result.metrics?.totalHours || 0,
+          recommendations: result.recommendations || ['Schedule optimized for efficiency and cost savings.'],
+          nextSteps: result.nextSteps || ['Review the schedule and make any necessary adjustments.'],
+          aiCost: result.aiCost || 0.001
+        });
+        
+        // Update the schedule with AI-generated assignments
+        const aiSchedule = result.schedule;
+        const updatedSchedule = scheduleDays.map(day => {
+          const aiDay = aiSchedule[day.day.toLowerCase()];
+          if (aiDay) {
+            return {
+              ...day,
+              lunch: {
+                ...day.lunch,
+                stations: day.lunch.stations.map(station => {
+                  const aiStation = aiDay.lunch?.stations?.[station.name];
+                  if (aiStation?.assignedStaff) {
+                    const assignedStaff = aiStation.assignedStaff.map((aiStaff: any) => {
+                      // Find staff member by name (AI uses names as IDs)
+                      const staffMember = staffMembers.find(s => 
+                        `${s.first_name} ${s.last_name}`.trim() === aiStaff.name.trim() ||
+                        s.first_name === aiStaff.name ||
+                        s.last_name === aiStaff.name
+                      );
+                      return staffMember || {
+                        id: aiStaff.id || `ai-${Date.now()}`,
+                        first_name: aiStaff.first_name || aiStaff.name || 'Unknown',
+                        last_name: aiStaff.last_name || '',
+                        role: aiStaff.role || 'Staff',
+                        performance_score: 80,
+                        availability: { monday: { available: true }, tuesday: { available: true }, wednesday: { available: true }, thursday: { available: true }, friday: { available: true } },
+                        stations: [station.name],
+                        hourly_wage: aiStaff.hourly_wage || 25,
+                        organization_id: organizationId,
+                        email: '',
+                        guaranteed_hours: 0,
+                        employment_type: 'part-time' as const,
+                        contact_info: {},
+                        start_date: new Date().toISOString(),
+                        status: 'active' as const,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
                       };
-                    }
-                    return station;
-                  })
-                },
-                dinner: {
-                  ...day.dinner,
-                  stations: day.dinner.stations.map(station => {
-                    const aiStation = aiDay.dinner?.stations?.[station.name.toLowerCase()];
-                    if (aiStation?.assignedStaff) {
-                      const assignedStaff = aiStation.assignedStaff.map((aiStaff: any) => {
-                        const staffMember = staffMembers.find(s => s.id === aiStaff.id);
-                        return staffMember || {
-                          id: aiStaff.id,
-                          first_name: aiStaff.first_name,
-                          last_name: aiStaff.last_name,
-                          role: aiStaff.role,
-                          performance_score: 80,
-                          availability: { monday: { available: true }, tuesday: { available: true }, wednesday: { available: true }, thursday: { available: true }, friday: { available: true } },
-                          stations: [station.name],
-                          hourly_wage: 25,
-                          conflicts: []
-                        };
-                      });
-                      
-                      return {
-                        ...station,
-                        assignedStaff,
-                        color: (assignedStaff.length >= station.requiredCapacity ? 'green' : 'yellow') as 'green' | 'yellow' | 'red'
+                    });
+                    
+                    return {
+                      ...station,
+                      assignedStaff,
+                      color: (assignedStaff.length >= station.requiredCapacity ? 'green' : 'yellow') as 'green' | 'yellow' | 'red'
+                    };
+                  }
+                  return station;
+                })
+              },
+              dinner: {
+                ...day.dinner,
+                stations: day.dinner.stations.map(station => {
+                  const aiStation = aiDay.dinner?.stations?.[station.name];
+                  if (aiStation?.assignedStaff) {
+                    const assignedStaff = aiStation.assignedStaff.map((aiStaff: any) => {
+                      // Find staff member by name (AI uses names as IDs)
+                      const staffMember = staffMembers.find(s => 
+                        `${s.first_name} ${s.last_name}`.trim() === aiStaff.name.trim() ||
+                        s.first_name === aiStaff.name ||
+                        s.last_name === aiStaff.name
+                      );
+                      return staffMember || {
+                        id: aiStaff.id || `ai-${Date.now()}`,
+                        first_name: aiStaff.first_name || aiStaff.name || 'Unknown',
+                        last_name: aiStaff.last_name || '',
+                        role: aiStaff.role || 'Staff',
+                        performance_score: 80,
+                        availability: { monday: { available: true }, tuesday: { available: true }, wednesday: { available: true }, thursday: { available: true }, friday: { available: true } },
+                        stations: [station.name],
+                        hourly_wage: aiStaff.hourly_wage || 25,
+                        organization_id: organizationId,
+                        email: '',
+                        guaranteed_hours: 0,
+                        employment_type: 'part-time' as const,
+                        contact_info: {},
+                        start_date: new Date().toISOString(),
+                        status: 'active' as const,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
                       };
-                    }
-                    return station;
-                  })
-                }
-              };
-            }
-            return day;
-          });
-
-          setSchedule(updatedSchedule);
-          setConflictAlert(`🎉 AI Schedule Generated! ${result.reasoning ? 'Reasoning: ' + result.reasoning.substring(0, 100) + '...' : ''} Expected Efficiency: ${result.metrics?.expectedEfficiency}%, Cost Savings: $${result.metrics?.costSavings}`);
-          
-          // Reload schedule data from database to show the new AI-generated assignments
-          if (organizationId) {
-            await loadExistingSchedule(organizationId);
+                    });
+                    
+                    return {
+                      ...station,
+                      assignedStaff,
+                      color: (assignedStaff.length >= station.requiredCapacity ? 'green' : 'yellow') as 'green' | 'yellow' | 'red'
+                    };
+                  }
+                  return station;
+                })
+              }
+            };
           }
-        } else {
-          setConflictAlert('AI generated schedule but no schedule data was returned. Please try again.');
-        }
+          return day;
+        });
+
+        setScheduleDays(updatedSchedule);
+        setConflictAlert(`🎉 AI Schedule Generated! ${result.reasoning ? 'Reasoning: ' + result.reasoning.substring(0, 100) + '...' : ''} Expected Efficiency: ${result.metrics?.expectedEfficiency}%, Cost Savings: $${result.metrics?.costSavings}`);
+        
+        // Reload the schedule from database to ensure consistency
+        await loadExistingSchedule(organizationId);
+        
+        setTimeout(() => setConflictAlert(null), 8000);
       } else {
         const error = await response.json();
         setConflictAlert(`AI schedule generation failed: ${error.error}`);
+        setTimeout(() => setConflictAlert(null), 8000);
       }
     } catch (error) {
       console.error('Error generating AI schedule:', error);
-      setConflictAlert('Failed to generate AI schedule. Please try again.');
+      setConflictAlert('AI schedule generation failed. Please try again.');
+      setTimeout(() => setConflictAlert(null), 8000);
     } finally {
       setIsGeneratingAI(false);
-      setShowAIProgress(false); // Hide progress tracker
-      setTimeout(() => setConflictAlert(null), 10000);
+      setShowAIProgress(false);
+      setAiProgress(0);
     }
   };
 
@@ -719,7 +805,7 @@ export default function SchedulePage() {
       const availableStaff = [...staffMembers];
       
       // Enhanced logic to assign staff based on weather conditions
-      schedule.forEach(day => {
+      scheduleDays.forEach(day => {
         (['lunch', 'dinner'] as const).forEach((shiftType) => {
           const shift = day[shiftType];
           shift.stations.forEach((station: Station) => {
@@ -797,7 +883,7 @@ export default function SchedulePage() {
       // Fallback to basic assignment
       const availableStaff = [...staffMembers];
       
-      schedule.forEach(day => {
+      scheduleDays.forEach(day => {
         (['lunch', 'dinner'] as const).forEach((shiftType) => {
           const shift = day[shiftType];
           shift.stations.forEach((station: Station) => {
@@ -826,23 +912,11 @@ export default function SchedulePage() {
   };
 
   const saveSchedule = async () => {
-    if (!organizationId) {
-      setConflictAlert('Please complete onboarding to set up your organization first');
-      setTimeout(() => setConflictAlert(null), 8000);
-      return;
-    }
-
+    if (!organizationId) return;
+    
     try {
-      // Get current week start date (Monday)
-      const today = new Date();
-      const monday = new Date(today);
-      const dayOfWeek = today.getDay();
-      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-      monday.setDate(today.getDate() - daysToMonday);
-      const weekStart = monday.toISOString().split('T')[0];
-
       // Transform schedule data for API
-      const staffAssignments = schedule.reduce((acc, day) => {
+      const staffAssignments = scheduleDays.reduce((acc, day) => {
         acc[day.day] = {
           lunch: {
             name: 'Lunch',
@@ -891,7 +965,8 @@ export default function SchedulePage() {
         },
         body: JSON.stringify({
           organizationId,
-          weekStart: weekStart,
+          weekStart: selectedStartDate.toISOString().split('T')[0],
+          weekEnd: selectedEndDate.toISOString().split('T')[0],
           staffAssignments
         })
       });
@@ -985,12 +1060,12 @@ export default function SchedulePage() {
               <Button
                 onClick={() => {
                   // Use the current schedule data instead of fetching from database
-                  if (schedule && schedule.length > 0) {
+                  if (scheduleDays && scheduleDays.length > 0) {
                     // Create schedule object from current schedule state
                     const currentSchedule = {
                       id: 'current-schedule-' + Date.now(),
-                      week_start_date: new Date().toISOString().split('T')[0],
-                      shifts: schedule.reduce((acc, day) => {
+                      week_start_date: selectedStartDate.toISOString().split('T')[0],
+                      shifts: scheduleDays.reduce((acc, day) => {
                         acc[day.day.toLowerCase().substring(0, 3)] = {
                           lunch: {
                             stations: day.lunch.stations.reduce((stationAcc, station) => {
@@ -1022,7 +1097,7 @@ export default function SchedulePage() {
                     let totalCost = 0;
                     let totalHours = 0;
                     
-                    schedule.forEach(day => {
+                    scheduleDays.forEach(day => {
                       [day.lunch, day.dinner].forEach(shift => {
                         shift.stations.forEach(station => {
                           if (station.assignedStaff) {
@@ -1131,12 +1206,19 @@ export default function SchedulePage() {
 
       {/* Main Content */}
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Date Range Picker */}
+        <div className="mb-6">
+          <DateRangePicker onDateRangeChange={handleDateRangeChange} />
+        </div>
+        
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Weekly Schedule */}
           <div className="lg:col-span-3">
             <div className="bg-white rounded-lg shadow-sm border">
               <div className="p-6 border-b">
-                <h2 className="text-xl font-semibold text-gray-900">Weekly Schedule</h2>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Schedule: {selectedStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {selectedEndDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </h2>
                 <p className="text-sm text-gray-500 mt-1">Drag staff cards into shifts/stations.</p>
               </div>
               
@@ -1153,10 +1235,11 @@ export default function SchedulePage() {
                         <th className="py-2 px-4"></th>
                         <th className="py-2 px-4">
                           <div className="flex justify-center space-x-4">
-                            {schedule.map((day) => (
+                            {scheduleDays.map((day) => (
                               <div key={day.day} className="text-center">
                                 <div className="text-lg" title="Weather forecast will appear here">🌤️</div>
                                 <div className="text-xs text-gray-500">{day.day}</div>
+                                <div className="text-xs text-gray-400">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
                               </div>
                             ))}
                           </div>
@@ -1165,7 +1248,7 @@ export default function SchedulePage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {schedule.map((day) => (
+                      {scheduleDays.map((day) => (
                         <tr key={day.day} className="border-b">
                           <td className="py-4 px-4 font-medium text-gray-900">{day.day}</td>
                           
