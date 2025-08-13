@@ -4,6 +4,7 @@ import Link from "next/link";
 import PerformanceChart from "./components/PerformanceChart";
 import StaffPerformance from "./components/StaffPerformance";
 import { AnalyticsService, AnalyticsData, StaffPerformanceData, ChartDataPoint } from "@/lib/services/analytics";
+import { DatabaseService } from "@/lib/services/database";
 
 type TimeRange = '7d' | '30d' | '90d' | '1y';
 type MetricType = 'labor-cost' | 'staffing-efficiency' | 'schedule-quality' | 'cost-savings';
@@ -25,21 +26,21 @@ export default function AnalyticsPage() {
       try {
         setIsLoading(true);
         
-        // Get organization ID from localStorage or use consistent ID
-        let storedOrgId = localStorage.getItem('organizationId');
-        if (!storedOrgId || storedOrgId === 'mock-org-123') {
-          // Use a consistent organization ID that matches the working system
-          storedOrgId = '21bf260b-8b4c-48c5-b370-836571619abc';
-          localStorage.setItem('organizationId', storedOrgId);
+        // Get organization ID for the current authenticated user
+        const currentOrgId = await DatabaseService.getCurrentUserOrganizationId();
+        if (!currentOrgId) {
+          console.error('No organization ID found for current user');
+          setIsLoading(false);
+          return;
         }
         
-        setOrganizationId(storedOrgId);
+        setOrganizationId(currentOrgId);
         
         // Load all analytics data
         const [analytics, charts, staff] = await Promise.all([
-          AnalyticsService.getAnalyticsData(storedOrgId, timeRange),
-          AnalyticsService.getChartData(storedOrgId, timeRange),
-          AnalyticsService.getStaffPerformanceData(storedOrgId)
+          AnalyticsService.getAnalyticsData(currentOrgId, timeRange),
+          AnalyticsService.getChartData(currentOrgId, timeRange),
+          AnalyticsService.getStaffPerformanceData(currentOrgId)
         ]);
         
         setAnalyticsData(analytics);

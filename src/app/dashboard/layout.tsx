@@ -120,6 +120,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       AI Test
                     </Link>
                     <Link
+                      href="/dashboard/billing" 
+                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Billing
+                    </Link>
+                    <Link
                       href="/dashboard" 
                       className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                     >

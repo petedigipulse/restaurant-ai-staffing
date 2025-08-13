@@ -351,13 +351,13 @@ Focus on:
     return `Please analyze the following restaurant business data and provide ${dataType === 'all' ? 'comprehensive business insights' : `${dataType} insights`}.
 
 STAFF DATA (${staff.length} members):
-${staff.map(s => `- ${s.first_name} ${s.last_name}: ${s.role}, $${s.hourly_wage}/hr, Performance: ${s.performance_score}/100`).join('\n')}
+${staff.map((s: any) => `- ${s.first_name} ${s.last_name}: ${s.role}, $${s.hourly_wage}/hr, Performance: ${s.performance_score}/100`).join('\n')}
 
 SCHEDULE DATA (${schedules.length} weeks):
-${schedules.slice(0, 5).map(s => `- Week ${s.week_start_date}: $${s.total_labor_cost}, ${s.total_hours} hours`).join('\n')}
+${schedules.slice(0, 5).map((s: any) => `- Week ${s.week_start_date}: $${s.total_labor_cost}, ${s.total_hours} hours`).join('\n')}
 
-HISTORICAL SALES (${historicalData.length} records):
-${historicalData.slice(0, 10).map(h => `- ${h.date}: $${h.total_sales}, ${h.customer_count} customers`).join('\n')}
+HISTORICAL DATA (${historicalData.length} records):
+${historicalData.slice(0, 5).map((h: any) => `- ${h.date}: $${h.total_sales}, ${h.customer_count} customers`).join('\n')}
 
 Please provide a JSON response with the following structure:
 {

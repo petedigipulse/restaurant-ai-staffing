@@ -3,19 +3,133 @@ import type { Organization, StaffMember, BusinessRules } from '../supabase';
 
 export class DatabaseService {
   // Organization operations
-  static async createOrganization(data: Omit<Organization, 'id' | 'created_at' | 'updated_at'>) {
-    const { data: org, error } = await supabase
+  static async createOrganization(organizationData: {
+    name: string;
+    type: string;
+    timezone: string;
+    operating_hours: Record<string, any>;
+    owner_id: string;
+  }) {
+    const { data, error } = await supabase
       .from('organizations')
-      .insert([data])
+      .insert([{
+        name: organizationData.name,
+        type: organizationData.type,
+        timezone: organizationData.timezone,
+        operating_hours: organizationData.operating_hours,
+        owner_id: organizationData.owner_id
+      }])
       .select()
       .single();
 
-    if (error) {
-      console.error('Error creating organization:', error);
-      throw new Error(`Failed to create organization: ${error.message}`);
-    }
+    if (error) throw new Error(`Failed to create organization: ${error.message}`);
+    return data;
+  }
 
-    return org;
+  // Create organization with user during onboarding
+  static async createOrganizationWithUser(organizationData: {
+    name: string;
+    type: string;
+    timezone: string;
+    operating_hours: Record<string, any>;
+    user_email: string;
+    user_name: string;
+  }) {
+    try {
+      console.log('Creating organization with user:', organizationData);
+
+      // First check if user already exists
+      const { data: existingUser, error: userCheckError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', organizationData.user_email)
+        .single();
+
+      let userId: string;
+
+      if (existingUser) {
+        // User already exists, use their ID
+        console.log('User already exists, using existing user ID:', existingUser.id);
+        userId = existingUser.id;
+      } else {
+        // Create new user
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .insert([{
+            email: organizationData.user_email,
+            name: organizationData.user_name,
+            role: 'OWNER'
+          }])
+          .select()
+          .single();
+
+        if (userError) {
+          console.error('Error creating user:', userError);
+          throw new Error(`Failed to create user: ${userError.message}`);
+        }
+
+        console.log('User created successfully:', userData);
+        userId = userData.id;
+      }
+
+      // Check if organization already exists for this user
+      const { data: existingOrg, error: orgCheckError } = await supabase
+        .from('organizations')
+        .select('*')
+        .eq('owner_id', userId)
+        .single();
+
+      if (existingOrg) {
+        // Organization already exists, update it with new data
+        console.log('Organization already exists, updating with new data:', existingOrg.id);
+        
+        const { data: updatedOrg, error: updateError } = await supabase
+          .from('organizations')
+          .update({
+            name: organizationData.name,
+            type: organizationData.type,
+            timezone: organizationData.timezone,
+            operating_hours: organizationData.operating_hours,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingOrg.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('Error updating organization:', updateError);
+          throw new Error(`Failed to update organization: ${updateError.message}`);
+        }
+
+        console.log('Organization updated successfully:', updatedOrg);
+        return updatedOrg;
+      }
+
+      // Create new organization
+      const { data: orgData, error: orgError } = await supabase
+        .from('organizations')
+        .insert([{
+          name: organizationData.name,
+          type: organizationData.type,
+          timezone: organizationData.timezone,
+          operating_hours: organizationData.operating_hours,
+          owner_id: userId,
+          user_id: userId
+        }])
+        .select()
+        .single();
+
+      if (orgError) {
+        console.error('Error creating organization:', orgError);
+        throw new Error(`Failed to create organization: ${orgError.message}`);
+      }
+
+      console.log('Organization created successfully:', orgData);
+      return orgData;
+    } catch (error) {
+      console.error('Error in createOrganizationWithUser:', error);
+      throw error;
+    }
   }
 
   static async getOrganization(ownerId: string) {
@@ -27,6 +141,21 @@ export class DatabaseService {
 
     if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
       console.error('Error fetching organization:', error);
+      throw new Error(`Failed to fetch organization: ${error.message}`);
+    }
+
+    return org;
+  }
+
+  static async getOrganizationById(organizationId: string) {
+    const { data: org, error } = await supabase
+      .from('organizations')
+      .select('*')
+      .eq('id', organizationId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      console.error('Error fetching organization by ID:', error);
       throw new Error(`Failed to fetch organization: ${error.message}`);
     }
 
@@ -208,7 +337,16 @@ export class DatabaseService {
           phone: (row['Phone'] || row.phone || '').toString(),
           emergency_contact: (row['Emergency Contact'] || row.emergencyContact || '').toString()
         },
-        start_date: (row['Start Date'] || row.startDate || new Date().toISOString().split('T')[0]).toString(),
+        start_date: (() => {
+          const dateStr = row['Start Date'] || row.startDate || new Date().toISOString().split('T')[0];
+          // Validate that it's a proper date format (YYYY-MM-DD)
+          if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            return dateStr;
+          }
+          // If invalid, use today's date
+          console.warn(`Invalid start date format: "${dateStr}", using today's date instead`);
+          return new Date().toISOString().split('T')[0];
+        })(),
         status: 'active'
       }));
 
@@ -282,62 +420,201 @@ export class DatabaseService {
     return data;
   }
 
-  // Save historical data from onboarding
-  static async saveHistoricalDataFromOnboarding(
-    organizationId: string,
-    data: {
-      averageDailySales: number;
-      peakHours: string[];
-      seasonalPatterns: string[];
-      salesData: Array<{
-        date: string;
-        timeOfDay: string;
-        totalSales: number;
-        customerCount: number;
-        stationSales: string;
-      }>;
-      customerPatterns: {
-        weekday: number;
-        weekend: number;
-        lunch: number;
-        dinner: number;
-      };
-    }
-  ) {
+  // Save historical data from onboarding process
+  static async saveHistoricalDataFromOnboarding(organizationId: string, historicalData: any) {
     try {
-      // Convert onboarding data to historical sales format
-      const historicalRows = data.salesData.map(sale => ({
-        date: sale.date,
-        time: sale.timeOfDay,
-        totalSales: sale.totalSales,
-        customerCount: sale.customerCount,
-        stationBreakdown: (() => {
-          // Parse station sales string like "Kitchen: 100, Front of House: 200"
-          const breakdown: Record<string, number> = {};
-          if (sale.stationSales) {
-            const parts = sale.stationSales.split(',').map(p => p.trim());
-            parts.forEach(part => {
-              const [station, amount] = part.split(':').map(s => s.trim());
-              if (station && amount) {
-                breakdown[station] = parseFloat(amount) || 0;
-              }
-            });
-          }
-          return breakdown;
-        })(),
-        weatherConditions: null,
-        specialEvents: null,
-        notes: null,
+      // Get the current user's email from localStorage
+      const userEmail = typeof window !== 'undefined' ? localStorage.getItem('userEmail') : null;
+      
+      if (!userEmail) {
+        throw new Error('User not authenticated');
+      }
+
+      // Ensure the user exists and is linked to the organization
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', userEmail)
+        .single();
+
+      if (userError || !user) {
+        throw new Error('User not found in database');
+      }
+
+      // Verify the organization belongs to the user
+      const { data: org, error: orgError } = await supabase
+        .from('organizations')
+        .select('id')
+        .eq('id', organizationId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (orgError || !org) {
+        throw new Error('Organization not found or access denied');
+      }
+
+      // Transform the onboarding form data to match the database schema
+      if (!historicalData.salesData || !Array.isArray(historicalData.salesData)) {
+        throw new Error('Invalid historical data format: salesData array is required');
+      }
+
+      const transformedData = historicalData.salesData.map((sale: any) => ({
+        organization_id: organizationId,
+        date: sale.date || new Date().toISOString().split('T')[0],
+        time: sale.timeOfDay || '12:00',
+        total_sales: Number(sale.totalSales) || 0,
+        customer_count: Number(sale.customerCount) || 0,
+        station_breakdown: this.parseStationSales(sale.stationSales || ''),
+        weather_conditions: null, // Not provided in onboarding
+        special_events: null, // Not provided in onboarding
+        notes: `Onboarding data - ${sale.date || 'Unknown date'}`
       }));
 
-      // Save to historical_sales_data table
-      const result = await this.importHistoricalSales(organizationId, historicalRows);
-      
-      console.log(`✅ Saved ${historicalRows.length} historical data records to database`);
-      return result;
+      // Now save the transformed historical data
+      const { data, error } = await supabase
+        .from('historical_sales_data')
+        .insert(transformedData)
+        .select();
+
+      if (error) throw new Error(`Failed to save historical data: ${error.message}`);
+      return data;
     } catch (error) {
       console.error('Error saving historical data from onboarding:', error);
       throw error;
+    }
+  }
+
+  // Helper method to parse station sales string into object
+  private static parseStationSales(stationSales: string): Record<string, number> {
+    if (!stationSales) return {};
+    
+    try {
+      const stations = stationSales.split(',').map(s => s.trim());
+      const breakdown: Record<string, number> = {};
+      
+      stations.forEach(station => {
+        if (station.includes(':')) {
+          const [name, value] = station.split(':').map(s => s.trim());
+          breakdown[name] = parseFloat(value) || 0;
+        } else {
+          breakdown[station] = 0;
+        }
+      });
+      
+      return breakdown;
+    } catch (error) {
+      console.warn('Failed to parse station sales:', stationSales);
+      return {};
+    }
+  }
+
+  // Create initial performance metrics for staff members
+  static async createInitialPerformanceMetrics(organizationId: string) {
+    try {
+      // Get all staff members for this organization
+      const { data: staffMembers, error: staffError } = await supabase
+        .from('staff_members')
+        .select('id, performance_score')
+        .eq('organization_id', organizationId);
+
+      if (staffError) {
+        console.error('Error fetching staff members for performance metrics:', staffError);
+        return;
+      }
+
+      if (!staffMembers || staffMembers.length === 0) {
+        console.log('No staff members found for performance metrics');
+        return;
+      }
+
+      // Create performance metrics for each staff member
+      const performanceMetrics = staffMembers.map(staff => ({
+        organization_id: organizationId,
+        staff_member_id: staff.id,
+        date: new Date().toISOString().split('T')[0],
+        attendance: true,
+        performance_score: staff.performance_score || 80,
+        hours_worked: 0,
+        overtime_hours: 0,
+        notes: 'Initial performance metric from onboarding'
+      }));
+
+      const { data, error } = await supabase
+        .from('performance_metrics')
+        .insert(performanceMetrics)
+        .select();
+
+      if (error) {
+        console.error('Error creating performance metrics:', error);
+      } else {
+        console.log(`Created ${data?.length || 0} performance metrics`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error in createInitialPerformanceMetrics:', error);
+    }
+  }
+
+  // Get historical data for analytics and scheduling
+  static async getHistoricalDataForAnalytics(organizationId: string, days: number = 30) {
+    try {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+
+      const { data, error } = await supabase
+        .from('historical_sales_data')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .gte('date', startDate.toISOString().split('T')[0])
+        .lte('date', endDate.toISOString().split('T')[0])
+        .order('date', { ascending: false });
+
+      if (error) throw new Error(`Failed to fetch historical data: ${error.message}`);
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching historical data for analytics:', error);
+      throw error;
+    }
+  }
+
+  // Get current user's organization ID
+  static async getCurrentUserOrganizationId(): Promise<string | null> {
+    try {
+      if (typeof window === 'undefined') return null;
+      
+      const userEmail = localStorage.getItem('userEmail');
+      if (!userEmail) return null;
+
+      // Get user by email
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', userEmail)
+        .single();
+
+      if (userError || !user) {
+        console.error('User not found:', userError);
+        return null;
+      }
+
+      // Get organization for this user
+      const { data: org, error: orgError } = await supabase
+        .from('organizations')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (orgError || !org) {
+        console.error('Organization not found for user:', orgError);
+        return null;
+      }
+
+      return org.id;
+    } catch (error) {
+      console.error('Error getting current user organization ID:', error);
+      return null;
     }
   }
 
@@ -405,18 +682,31 @@ export class DatabaseService {
   }
 
   static async getSchedules(organizationId: string) {
-    const { data: schedules, error } = await supabase
-      .from('schedules')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .order('week_start_date', { ascending: false });
+    try {
+      console.log('🔍 DatabaseService.getSchedules called with organizationId:', organizationId);
+      
+      const { data: schedules, error } = await supabase
+        .from('schedules')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .order('week_start_date', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching schedules:', error);
-      throw new Error(`Failed to fetch schedules: ${error.message}`);
+      console.log('📊 Supabase response - data:', schedules, 'error:', error);
+
+      if (error) {
+        console.error('❌ Error fetching schedules:', error);
+        throw new Error(`Failed to fetch schedules: ${error.message}`);
+      }
+
+      // Ensure we always return an array
+      const result = schedules || [];
+      console.log('✅ getSchedules returning:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ getSchedules method error:', error);
+      // Return empty array instead of throwing
+      return [];
     }
-
-    return schedules || [];
   }
 
   static async getSchedule(id: string) {

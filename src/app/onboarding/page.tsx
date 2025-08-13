@@ -146,21 +146,33 @@ function OnboardingPageContent() {
   const saveRestaurantData = async () => {
     try {
       setIsLoading(true);
-      const org = await DatabaseService.createOrganization({
+      
+      // Get the current user's email from the session or localStorage
+      const userEmail = localStorage.getItem('userEmail') || 'user@restaurant.com';
+      const userName = userEmail.split('@')[0];
+      
+      console.log('Creating organization with user:', { userEmail, userName });
+      
+      // Create user and organization using the database function
+      const org = await DatabaseService.createOrganizationWithUser({
         name: formData.restaurant.name,
         type: formData.restaurant.type,
         timezone: formData.restaurant.timezone,
         operating_hours: formData.restaurant.operatingHours,
-        owner_id: crypto.randomUUID() // Generate a proper UUID
+        user_email: userEmail,
+        user_name: userName
       });
+      
       setOrganizationId(org.id);
       console.log('Restaurant data saved successfully:', org.id);
+      
+      // Verify the organization was created by trying to fetch it
+      await DatabaseService.getOrganizationById(org.id);
+      console.log('Organization verified in database');
+      
     } catch (error) {
       console.error('Error saving restaurant data:', error);
-      // Fallback to mock ID if organization creation fails
-      const mockOrgId = crypto.randomUUID();
-      setOrganizationId(mockOrgId);
-      console.log('Restaurant data saved successfully (mock):', mockOrgId);
+      throw error; // Don't fall back to mock ID - let the error propagate
     } finally {
       setIsLoading(false);
     }
@@ -174,6 +186,14 @@ function OnboardingPageContent() {
         return;
       }
       
+      // Verify the organization exists before creating staff
+      console.log('Verifying organization exists before creating staff...');
+      const org = await DatabaseService.getOrganizationById(organizationId);
+      if (!org) {
+        throw new Error('Organization not found in database');
+      }
+      console.log('Organization verified, proceeding with staff creation');
+      
       // Create staff members one by one since createStaffMember only handles single records
       for (let i = 0; i < formData.staff.length; i++) {
         const staff = formData.staff[i];
@@ -182,6 +202,15 @@ function OnboardingPageContent() {
         
         // Generate unique email if none provided
         const uniqueEmail = staff.email || `staff-${i + 1}-${Date.now()}@example.com`;
+        
+        // Debug logging to see the exact values
+        console.log('🔍 Staff member data before transformation:', {
+          firstName: staff.firstName,
+          lastName: staff.lastName,
+          startDate: staff.startDate,
+          emergencyContact: staff.emergencyContact,
+          phone: staff.phone
+        });
         
         const staffData = {
           organization_id: organizationId,
@@ -203,12 +232,16 @@ function OnboardingPageContent() {
           status: 'active' as const
         };
         
+        console.log('🔍 Staff data after transformation:', staffData);
+        console.log('🔍 start_date value being sent:', staffData.start_date);
+        console.log('🔍 emergency_contact value being sent:', staffData.contact_info.emergency_contact);
         console.log('Sending staff data:', staffData);
         await DatabaseService.createStaffMember(staffData);
       }
       console.log('Staff data saved successfully');
     } catch (error) {
       console.error('Error saving staff data:', error);
+      throw error; // Let the error propagate to show user
     } finally {
       setIsLoading(false);
     }
@@ -236,6 +269,11 @@ function OnboardingPageContent() {
       // Save historical data to database
       const result = await DatabaseService.saveHistoricalDataFromOnboarding(organizationId, formData.historicalData);
       console.log('✅ Historical data saved successfully to database:', result);
+      
+      // Create initial performance metrics for staff members
+      console.log('📊 Creating initial performance metrics...');
+      await DatabaseService.createInitialPerformanceMetrics(organizationId);
+      console.log('✅ Initial performance metrics created');
     } catch (error) {
       console.error('❌ Error saving historical data:', error);
     } finally {

@@ -24,10 +24,30 @@ export default function ScheduleHistory({ organizationId }: ScheduleHistoryProps
         const response = await fetch(`/api/schedule?organizationId=${organizationId}`);
         if (response.ok) {
           const data = await response.json();
-          setSchedules(data.schedules);
+          console.log('📅 ScheduleHistory API response:', data);
+          
+          // Handle the new API response structure
+          if (data.success && data.scheduleId) {
+            // If we have a schedule, create a single item array
+            setSchedules([{
+              id: data.scheduleId,
+              week_start_date: data.weekStart || new Date().toISOString(),
+              total_labor_cost: data.totalLaborCost || 0,
+              total_hours: data.totalHours || 0,
+              ai_generated: true, // Assume AI generated for now
+              created_at: new Date().toISOString()
+            }]);
+          } else {
+            // No schedules found
+            setSchedules([]);
+          }
+        } else {
+          console.error('Failed to fetch schedules:', response.status);
+          setSchedules([]);
         }
       } catch (error) {
         console.error('Error fetching schedules:', error);
+        setSchedules([]);
       } finally {
         setIsLoading(false);
       }
@@ -66,7 +86,8 @@ export default function ScheduleHistory({ organizationId }: ScheduleHistoryProps
     );
   }
 
-  if (schedules.length === 0) {
+  // Safety check to prevent schedules.length error
+  if (!schedules || schedules.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-sm border p-6">
         <div className="text-center text-gray-500">

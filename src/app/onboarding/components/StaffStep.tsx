@@ -161,16 +161,45 @@ export default function StaffStep({ data, updateData }: Props) {
         return;
       }
       
-      const headers = lines[0].split(',').map(h => h.trim());
+      // Helper function to properly parse CSV line with quoted fields
+      const parseCSVLine = (line: string) => {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            result.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        
+        // Add the last field
+        result.push(current.trim());
+        return result;
+      };
+      
+      const headers = parseCSVLine(lines[0]);
       const csvData: StaffMember[] = [];
       
+      console.log('📄 CSV Import - Headers parsed:', headers);
+      console.log('📄 CSV Import - Raw lines:', lines);
+      
       for (let i = 1; i < lines.length; i++) {
-        const cells = lines[i].split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
+        const cells = parseCSVLine(lines[i]);
         const row: any = {};
         
         headers.forEach((header, index) => {
           row[header] = cells[index] || '';
         });
+        
+        console.log(`📄 CSV Import - Row ${i} parsed:`, { headers, cells, row });
         
         // Transform CSV data to match StaffMember interface
         const staffMember: StaffMember = {
@@ -183,7 +212,7 @@ export default function StaffStep({ data, updateData }: Props) {
           guaranteedHours: parseInt(row['Guaranteed Hours'] || row['guaranteedHours'] || '0'),
           employmentType: (row['Employment Type'] || row['employmentType'] || 'part-time').toLowerCase() as any,
           performanceScore: parseInt(row['Performance Score'] || row['performanceScore'] || '80'),
-          stations: (row['Stations'] || row['stations'] || '').split(',').map(s => s.trim()).filter(Boolean),
+          stations: (row['Stations'] || row['stations'] || '').split(',').map((s: string) => s.trim()).filter(Boolean),
           availability: {
             monday: { available: true, startTime: '09:00', endTime: '17:00', preferred: false },
             tuesday: { available: true, startTime: '09:00', endTime: '17:00', preferred: false },
@@ -195,8 +224,22 @@ export default function StaffStep({ data, updateData }: Props) {
           },
           phone: row['Phone'] || row['phone'] || '',
           emergencyContact: row['Emergency Contact'] || row['emergencyContact'] || '',
-          startDate: row['Start Date'] || row['startDate'] || new Date().toISOString().split('T')[0]
+          startDate: (() => {
+            const dateStr = row['Start Date'] || row['startDate'] || new Date().toISOString().split('T')[0];
+            // Validate that it's a proper date format (YYYY-MM-DD)
+            if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+              return dateStr;
+            }
+            // If invalid, use today's date
+            console.warn(`Invalid start date format: "${dateStr}", using today's date instead`);
+            return new Date().toISOString().split('T')[0];
+          })(),
         };
+        
+        // Debug logging to verify data mapping
+        console.log('📄 CSV Import - Final staff member object:', staffMember);
+        console.log('📄 CSV Import - startDate value:', staffMember.startDate);
+        console.log('📄 CSV Import - emergencyContact value:', staffMember.emergencyContact);
         
         csvData.push(staffMember);
       }
@@ -228,6 +271,9 @@ export default function StaffStep({ data, updateData }: Props) {
     const csvContent = `First Name,Last Name,Email,Role,Hourly Wage,Guaranteed Hours,Employment Type,Performance Score,Stations,Phone,Emergency Contact,Start Date
 Emily,Chen,emily.chen@restaurant.com,FOH Manager,32.00,30,full-time,95,"Front of House, Management","+1 (555) 123-4567","John Chen","2024-01-15"
 Mai,Kanako,mai.kanako@restaurant.com,Barista,26.00,15,part-time,98,"Barista, Till","+1 (555) 987-6543","Sarah Johnson","2024-02-01"`;
+    
+    console.log('📄 CSV Template content being generated:', csvContent);
+    console.log('📄 CSV Template lines:', csvContent.split('\n'));
     
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);

@@ -1,26 +1,10 @@
 "use client";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { DatabaseService } from "@/lib/services/database";
+import { StaffMember } from "@/lib/supabase";
 import WeatherForecast from "./components/WeatherForecast";
 import ScheduleHistory from "./components/ScheduleHistory";
 import { useSession } from "next-auth/react";
-
-interface StaffMember {
-  id: string;
-  name: string;
-  role: string;
-  performance: number;
-  availability: string[];
-  stations: string[];
-  hourlyWage: number;
-  conflicts: Array<{
-    type: 'day-off' | 'requested-leave' | 'training' | 'injury' | 'other';
-    day: string;
-    reason: string;
-    startDate?: string;
-    endDate?: string;
-  }>;
-  image?: string;
-}
 
 interface Shift {
   id: string;
@@ -45,6 +29,11 @@ interface ScheduleDay {
 
 export default function SchedulePage() {
   const { data: session } = useSession();
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [unassignedStaff, setUnassignedStaff] = useState<StaffMember[]>([]);
+  const [draggedStaff, setDraggedStaff] = useState<StaffMember | null>(null);
+  const [conflictAlert, setConflictAlert] = useState<string | null>(null);
   const [schedule, setSchedule] = useState<ScheduleDay[]>([
     {
       day: 'Mon',
@@ -173,51 +162,199 @@ export default function SchedulePage() {
     }
   ]);
 
-  const [unassignedStaff, setUnassignedStaff] = useState<StaffMember[]>([]);
-  const [organizationId, setOrganizationId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
-  const [conflictAlert, setConflictAlert] = useState<string | null>(null);
-  const [draggedStaff, setDraggedStaff] = useState<StaffMember | null>(null);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [aiProgress, setAiProgress] = useState(0);
 
-  // Fetch staff data from database
+  // Load staff data from database
   useEffect(() => {
-    const fetchStaff = async () => {
+    const loadStaffData = async () => {
       try {
-        // Get organization ID from session or localStorage
-        let orgId = organizationId;
-        if (!orgId) {
-          // Try to get from localStorage
-          const storedOrgId = localStorage.getItem('organizationId');
-          if (storedOrgId && storedOrgId !== 'mock-org-123') {
-            orgId = storedOrgId;
-            setOrganizationId(storedOrgId);
-          } else {
-            // Use a consistent organization ID that matches the working system
-            const consistentOrgId = '21bf260b-8b4c-48c5-b370-836571619abc';
-            setOrganizationId(consistentOrgId);
-            localStorage.setItem('organizationId', consistentOrgId);
-            orgId = consistentOrgId;
-          }
+        // Get organization ID for the current authenticated user
+        const currentOrgId = await DatabaseService.getCurrentUserOrganizationId();
+        if (!currentOrgId) {
+          console.error('No organization ID found for current user');
+          setIsLoading(false);
+          return;
         }
-
-        if (orgId) {
-          const response = await fetch(`/api/schedule/staff?organizationId=${orgId}`);
-          if (response.ok) {
-            const data = await response.json();
-            setUnassignedStaff(data.staff);
-          }
-        }
+        
+        setOrganizationId(currentOrgId);
+        
+        // Load staff members
+        const staff = await DatabaseService.getStaffMembers(currentOrgId);
+        setStaffMembers(staff || []);
+        
+        // Set unassigned staff (all staff start as unassigned)
+        setUnassignedStaff(staff || []);
+        
+        // Load existing schedule data
+        await loadExistingSchedule(currentOrgId);
+        
+        // Set loading to false after data is loaded
+        setIsLoading(false);
       } catch (error) {
-        console.error('Error fetching staff:', error);
-      } finally {
+        console.error('Error loading staff data:', error);
         setIsLoading(false);
       }
     };
 
-    fetchStaff();
-  }, [session]); // Remove organizationId from dependencies to avoid circular dependency
+    loadStaffData();
+  }, []);
+
+  // Load existing schedule from database
+  const loadExistingSchedule = async (orgId: string) => {
+    try {
+      // Calculate current week start (Monday)
+      const today = new Date();
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - today.getDay() + 1); // Monday
+      const weekStartString = weekStart.toISOString().split('T')[0];
+
+      console.log('🔄 Loading existing schedule for week:', weekStartString);
+      
+      const response = await fetch(`/api/schedule?organizationId=${orgId}`);
+      if (response.ok) {
+        const existingSchedule = await response.json();
+        console.log('📅 Existing schedule data:', existingSchedule);
+        
+        if (existingSchedule && existingSchedule.shifts) {
+          console.log('🔍 Found shifts data:', existingSchedule.shifts);
+          
+          // Use the transformed data directly from the API
+          const transformedSchedule = schedule.map(day => {
+            const dbDay = existingSchedule.shifts[day.day]; // Use exact day name (Mon, Tue, etc.)
+            console.log(`🔍 Processing day ${day.day}:`, dbDay);
+            
+            if (dbDay) {
+              return {
+                ...day,
+                lunch: {
+                  ...day.lunch,
+                  stations: day.lunch.stations.map(station => {
+                    const dbStation = dbDay.lunch?.stations?.[station.name]; // Use exact station name
+                    console.log(`🔍 Station ${station.name}:`, dbStation);
+                    
+                    if (dbStation?.assignedStaff && Array.isArray(dbStation.assignedStaff)) {
+                      console.log(`✅ Found ${dbStation.assignedStaff.length} assigned staff for ${station.name}:`, dbStation.assignedStaff);
+                      
+                      // Map database staff assignments to our staff data
+                      const assignedStaff = dbStation.assignedStaff.map((dbStaff: any) => {
+                        const staffMember = staffMembers.find(s => s.id === dbStaff.id);
+                        if (staffMember) {
+                          console.log(`✅ Found matching staff member:`, staffMember);
+                          return staffMember;
+                        } else {
+                          console.log(`⚠️ Staff member not found in staffMembers, creating fallback:`, dbStaff);
+                          return {
+                            id: dbStaff.id,
+                            first_name: dbStaff.first_name || dbStaff.name || 'Unknown',
+                            last_name: dbStaff.last_name || '',
+                            role: dbStaff.role || 'Staff',
+                            performance_score: 80,
+                            availability: { monday: { available: true }, tuesday: { available: true }, wednesday: { available: true }, thursday: { available: true }, friday: { available: true } },
+                            stations: [station.name],
+                            hourly_wage: dbStaff.hourly_wage || 25,
+                            organization_id: orgId,
+                            email: '',
+                            guaranteed_hours: 0,
+                            employment_type: 'part-time' as const,
+                            contact_info: {},
+                            start_date: new Date().toISOString(),
+                            status: 'active' as const,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                          };
+                        }
+                      });
+                      
+                      console.log(`🎯 Final assigned staff for ${station.name}:`, assignedStaff);
+                      
+                      return {
+                        ...station,
+                        assignedStaff,
+                        color: (assignedStaff.length >= station.requiredCapacity ? 'green' : 'yellow') as 'green' | 'yellow' | 'red'
+                      };
+                    } else {
+                      console.log(`❌ No assigned staff found for station ${station.name}`);
+                    }
+                    return station;
+                  })
+                },
+                dinner: {
+                  ...day.dinner,
+                  stations: day.dinner.stations.map(station => {
+                    const dbStation = dbDay.dinner?.stations?.[station.name]; // Use exact station name
+                    console.log(`🔍 Dinner station ${station.name}:`, dbStation);
+                    
+                    if (dbStation?.assignedStaff && Array.isArray(dbStation.assignedStaff)) {
+                      console.log(`✅ Found ${dbStation.assignedStaff.length} assigned staff for dinner ${station.name}:`, dbStation.assignedStaff);
+                      
+                      const assignedStaff = dbStation.assignedStaff.map((dbStaff: any) => {
+                        const staffMember = staffMembers.find(s => s.id === dbStaff.id);
+                        if (staffMember) {
+                          console.log(`✅ Found matching staff member for dinner:`, staffMember);
+                          return staffMember;
+                        } else {
+                          console.log(`⚠️ Dinner staff member not found in staffMembers, creating fallback:`, dbStaff);
+                          return {
+                            id: dbStaff.id,
+                            first_name: dbStaff.first_name || dbStaff.name || 'Unknown',
+                            last_name: dbStaff.last_name || '',
+                            role: dbStaff.role || 'Staff',
+                            performance_score: 80,
+                            availability: { monday: { available: true }, tuesday: { available: true }, wednesday: { available: true }, thursday: { available: true }, friday: { available: true } },
+                            stations: [station.name],
+                            hourly_wage: dbStaff.hourly_wage || 25,
+                            organization_id: orgId,
+                            email: '',
+                            guaranteed_hours: 0,
+                            employment_type: 'part-time' as const,
+                            contact_info: {},
+                            start_date: new Date().toISOString(),
+                            status: 'active' as const,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                          };
+                        }
+                      });
+                      
+                      console.log(`🎯 Final assigned staff for dinner ${station.name}:`, assignedStaff);
+                      
+                      return {
+                        ...station,
+                        assignedStaff,
+                        color: (assignedStaff.length >= station.requiredCapacity ? 'green' : 'yellow') as 'green' | 'yellow' | 'red'
+                      };
+                    } else {
+                      console.log(`❌ No assigned staff found for dinner station ${station.name}`);
+                    }
+                    return station;
+                  })
+                }
+              };
+            } else {
+              console.log(`❌ No data found for day ${day.day}`);
+            }
+            return day;
+          });
+          
+          console.log('✅ Final transformed schedule:', transformedSchedule);
+          setSchedule(transformedSchedule);
+          
+          // Update station colors after loading
+          setTimeout(() => {
+            updateStationColors();
+          }, 100);
+        } else {
+          console.log('❌ No shifts data found in schedule response');
+        }
+      } else {
+        console.error('❌ Failed to fetch schedule:', response.status);
+      }
+    } catch (error) {
+      console.error('Error loading existing schedule:', error);
+    }
+  };
 
   const handleDragStart = (e: React.DragEvent, staff: StaffMember) => {
     setDraggedStaff(staff);
@@ -235,24 +372,29 @@ export default function SchedulePage() {
     // Check for conflicts first
     const conflicts = checkStaffConflicts(draggedStaff, day);
     if (conflicts.length > 0) {
-      const conflictMessages = conflicts.map(c => `${c.type}: ${c.reason}`).join(', ');
-      setConflictAlert(`${draggedStaff.name} has conflicts on ${day}: ${conflictMessages}`);
+      const conflictMessages = conflicts.map((c: any) => `${c.type}: ${c.reason}`).join(', ');
+      setConflictAlert(`${draggedStaff.first_name} ${draggedStaff.last_name} has conflicts on ${day}: ${conflictMessages}`);
       setTimeout(() => setConflictAlert(null), 8000);
       return;
     }
 
     // Check if staff is qualified for this station
     if (!draggedStaff.stations.includes(targetStation.name)) {
-      setConflictAlert(`${draggedStaff.name} is not qualified for ${targetStation.name}`);
+      setConflictAlert(`${draggedStaff.first_name} ${draggedStaff.last_name} is not qualified for ${targetStation.name}`);
       setTimeout(() => setConflictAlert(null), 8000);
       return;
     }
 
     // Check if staff is available on this day
-    if (!draggedStaff.availability.includes(day)) {
-      setConflictAlert(`${draggedStaff.name} is not available on ${day}`);
-      setTimeout(() => setConflictAlert(null), 8000);
-      return;
+    if (!draggedStaff.availability && typeof draggedStaff.availability === 'object') {
+      const availableDays = Object.keys(draggedStaff.availability).filter(dayKey =>
+        draggedStaff.availability[dayKey] && draggedStaff.availability[dayKey].available
+      );
+      if (!availableDays.includes(day.toLowerCase())) {
+        setConflictAlert(`${draggedStaff.first_name} ${draggedStaff.last_name} is not available on ${day}`);
+        setTimeout(() => setConflictAlert(null), 8000);
+        return;
+      }
     }
 
     // Check if station is at capacity
@@ -299,19 +441,8 @@ export default function SchedulePage() {
   };
 
   const checkStaffConflicts = (staff: StaffMember, day: string) => {
-    return staff.conflicts.filter(conflict => {
-      // Check if the conflict applies to this specific day
-      if (conflict.day === day) return true;
-      
-      // Check if it's a date range conflict (simplified for demo)
-      if (conflict.startDate && conflict.endDate) {
-        // In a real app, you'd convert 'day' to a specific date and compare
-        // For demo purposes, we'll primarily use the day-based conflicts
-        return false; 
-      }
-      
-      return false;
-    });
+    // Since the database StaffMember type doesn't have conflicts, return empty array
+    return [];
   };
 
   const removeStaffFromStation = (staffId: string, stationId: string, day: string, shiftType: 'lunch' | 'dinner') => {
@@ -355,7 +486,7 @@ export default function SchedulePage() {
     updateStationColors();
   };
 
-  const updateStationColors = useCallback(() => {
+  const updateStationColors = () => {
     setSchedule(prevSchedule => 
       prevSchedule.map(day => ({
         ...day,
@@ -377,7 +508,7 @@ export default function SchedulePage() {
         }
       }))
     );
-  }, []);
+  };
 
   const getStationColor = (color: string) => {
     switch (color) {
@@ -398,30 +529,6 @@ export default function SchedulePage() {
   };
 
   const generateAISchedule = async () => {
-    if (!organizationId) {
-      setConflictAlert('Please complete onboarding to set up your organization first');
-      setTimeout(() => setConflictAlert(null), 8000);
-      return;
-    }
-
-    setIsGeneratingAI(true);
-    setAiProgress(0);
-
-    // Simulate AI processing
-    const interval = setInterval(() => {
-      setAiProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsGeneratingAI(false);
-          autoAssignStaff();
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 200);
-  };
-
-  const generateAIPoweredSchedule = async () => {
     if (!organizationId) {
       setConflictAlert('Please complete onboarding to set up your organization first');
       setTimeout(() => setConflictAlert(null), 8000);
@@ -474,15 +581,16 @@ export default function SchedulePage() {
                       if (aiStation?.assignedStaff) {
                         // Map AI staff assignments to our staff data
                         const assignedStaff = aiStation.assignedStaff.map((aiStaff: any) => {
-                          const staffMember = unassignedStaff.find(s => s.id === aiStaff.id);
+                          const staffMember = staffMembers.find(s => s.id === aiStaff.id);
                           return staffMember || {
                             id: aiStaff.id,
-                            name: aiStaff.name,
+                            first_name: aiStaff.first_name,
+                            last_name: aiStaff.last_name,
                             role: aiStaff.role,
-                            performance: 80,
-                            availability: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+                            performance_score: 80,
+                            availability: { monday: { available: true }, tuesday: { available: true }, wednesday: { available: true }, thursday: { available: true }, friday: { available: true } },
                             stations: [station.name],
-                            hourlyWage: 25,
+                            hourly_wage: 25,
                             conflicts: []
                           };
                         });
@@ -490,7 +598,7 @@ export default function SchedulePage() {
                         return {
                           ...station,
                           assignedStaff,
-                          color: assignedStaff.length >= station.requiredCapacity ? 'green' : 'yellow'
+                          color: (assignedStaff.length >= station.requiredCapacity ? 'green' : 'yellow') as 'green' | 'yellow' | 'red'
                         };
                       }
                       return station;
@@ -502,15 +610,16 @@ export default function SchedulePage() {
                       const aiStation = aiDay.dinner?.stations?.[station.name.toLowerCase()];
                       if (aiStation?.assignedStaff) {
                         const assignedStaff = aiStation.assignedStaff.map((aiStaff: any) => {
-                          const staffMember = unassignedStaff.find(s => s.id === aiStaff.id);
+                          const staffMember = staffMembers.find(s => s.id === aiStaff.id);
                           return staffMember || {
                             id: aiStaff.id,
-                            name: aiStaff.name,
+                            first_name: aiStaff.first_name,
+                            last_name: aiStaff.last_name,
                             role: aiStaff.role,
-                            performance: 80,
-                            availability: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+                            performance_score: 80,
+                            availability: { monday: { available: true }, tuesday: { available: true }, wednesday: { available: true }, thursday: { available: true }, friday: { available: true } },
                             stations: [station.name],
-                            hourlyWage: 25,
+                            hourly_wage: 25,
                             conflicts: []
                           };
                         });
@@ -518,7 +627,7 @@ export default function SchedulePage() {
                         return {
                           ...station,
                           assignedStaff,
-                          color: assignedStaff.length >= station.requiredCapacity ? 'green' : 'yellow'
+                          color: (assignedStaff.length >= station.requiredCapacity ? 'green' : 'yellow') as 'green' | 'yellow' | 'red'
                         };
                       }
                       return station;
@@ -531,6 +640,11 @@ export default function SchedulePage() {
           });
 
           setConflictAlert(`🎉 AI Schedule Generated! ${result.reasoning ? 'Reasoning: ' + result.reasoning.substring(0, 100) + '...' : ''} Expected Efficiency: ${result.metrics?.expectedEfficiency}%, Cost Savings: $${result.metrics?.costSavings}`);
+          
+          // Reload schedule data from database to show the new AI-generated assignments
+          if (organizationId) {
+            await loadExistingSchedule(organizationId);
+          }
         } else {
           setConflictAlert('AI generated schedule but no schedule data was returned. Please try again.');
         }
@@ -557,7 +671,7 @@ export default function SchedulePage() {
         weatherData = await weatherResponse.json();
       }
       
-      const availableStaff = [...unassignedStaff];
+      const availableStaff = [...staffMembers];
       
       // Enhanced logic to assign staff based on weather conditions
       schedule.forEach(day => {
@@ -567,8 +681,10 @@ export default function SchedulePage() {
             // Find available staff for this station
             const qualifiedStaff = availableStaff.filter(staff => 
               staff.stations.includes(station.name) &&
-              staff.availability.includes(day.day) &&
-              staff.conflicts.filter(c => c.day === day.day).length === 0
+              staff.availability && typeof staff.availability === 'object' &&
+              Object.keys(staff.availability).filter(dayKey => 
+                staff.availability[dayKey] && staff.availability[dayKey].available
+              ).includes(day.day.toLowerCase())
             );
             
             // Apply weather-based staffing adjustments
@@ -595,7 +711,7 @@ export default function SchedulePage() {
                 
                 // Prioritize high-performance staff during challenging weather
                 if (dayWeather.staffingImpact !== 'low') {
-                  qualifiedStaff.sort((a, b) => b.performance - a.performance);
+                  qualifiedStaff.sort((a, b) => (b.performance_score || 0) - (a.performance_score || 0));
                 }
                 
                 // Assign staff up to adjusted capacity
@@ -634,7 +750,7 @@ export default function SchedulePage() {
     } catch (error) {
       console.error('Error in auto-assignment:', error);
       // Fallback to basic assignment
-      const availableStaff = [...unassignedStaff];
+      const availableStaff = [...staffMembers];
       
       schedule.forEach(day => {
         (['lunch', 'dinner'] as const).forEach((shiftType) => {
@@ -642,8 +758,10 @@ export default function SchedulePage() {
           shift.stations.forEach((station: Station) => {
             const qualifiedStaff = availableStaff.filter(staff => 
               staff.stations.includes(station.name) &&
-              staff.availability.includes(day.day) &&
-              staff.conflicts.filter(c => c.day === day.day).length === 0
+              staff.availability && typeof staff.availability === 'object' &&
+              Object.keys(staff.availability).filter(dayKey => 
+                staff.availability[dayKey] && staff.availability[dayKey].available
+              ).includes(day.day.toLowerCase())
             );
             
             const staffToAssign = qualifiedStaff.slice(0, station.requiredCapacity);
@@ -689,9 +807,10 @@ export default function SchedulePage() {
                 requiredCapacity: station.requiredCapacity,
                 assignedStaff: station.assignedStaff.map(staff => ({
                   id: staff.id,
-                  name: staff.name,
+                  first_name: staff.first_name,
+                  last_name: staff.last_name,
                   role: staff.role,
-                  hourly_wage: staff.hourlyWage
+                  hourly_wage: staff.hourly_wage
                 }))
               };
               return stationAcc;
@@ -705,9 +824,10 @@ export default function SchedulePage() {
                 requiredCapacity: station.requiredCapacity,
                 assignedStaff: station.assignedStaff.map(staff => ({
                   id: staff.id,
-                  name: staff.name,
+                  first_name: staff.first_name,
+                  last_name: staff.last_name,
                   role: staff.role,
-                  hourly_wage: staff.hourlyWage
+                  hourly_wage: staff.hourly_wage
                 }))
               };
               return stationAcc;
@@ -769,44 +889,26 @@ export default function SchedulePage() {
               <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">Live</span>
             </div>
             
-            <div className="flex items-center space-x-3">
-              <button 
+            <div className="flex space-x-3">
+              <button
                 onClick={saveSchedule}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 Save Schedule
               </button>
               
-              <button 
+              <button
                 onClick={generateAISchedule}
                 disabled={isGeneratingAI}
-                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isGeneratingAI ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Generating... {aiProgress}%</span>
+                    <span className="animate-spin mr-2">⏳</span>
+                    <span>Generating...</span>
                   </>
                 ) : (
                   <span>Generate AI Schedule</span>
-                )}
-              </button>
-              
-              <button 
-                onClick={generateAIPoweredSchedule}
-                disabled={isGeneratingAI}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-              >
-                {isGeneratingAI ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>AI Processing...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>🤖 AI-Powered</span>
-                    <span>Schedule</span>
-                  </>
                 )}
               </button>
             </div>
@@ -814,17 +916,23 @@ export default function SchedulePage() {
           
           {/* Navigation */}
           <div className="flex space-x-1 pb-4">
-            {['Overview', 'Scheduling', 'Analytics', 'Staff'].map((tab) => (
-              <button
-                key={tab}
+            {[
+              { name: 'Overview', href: '/dashboard' },
+              { name: 'Scheduling', href: '/dashboard/schedule' },
+              { name: 'Analytics', href: '/dashboard/analytics' },
+              { name: 'Staff', href: '/dashboard/staff' }
+            ].map((tab) => (
+              <a
+                key={tab.name}
+                href={tab.href}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  tab === 'Scheduling'
+                  tab.name === 'Scheduling'
                     ? 'bg-gray-900 text-white'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                 }`}
               >
-                {tab}
-              </button>
+                {tab.name}
+              </a>
             ))}
           </div>
         </div>
@@ -908,7 +1016,7 @@ export default function SchedulePage() {
                                         onClick={() => removeStaffFromStation(staff.id, station.id, day.day, 'lunch')}
                                         title="Click to remove"
                                       >
-                                        <span className="text-sm font-medium text-gray-900">{staff.name}</span>
+                                        <span className="text-sm font-medium text-gray-900">{staff.first_name} {staff.last_name}</span>
                                         <span className="text-xs text-gray-500">{staff.role}</span>
                                       </div>
                                     ))}
@@ -943,7 +1051,7 @@ export default function SchedulePage() {
                                         onClick={() => removeStaffFromStation(staff.id, station.id, day.day, 'dinner')}
                                         title="Click to remove"
                                       >
-                                        <span className="text-sm font-medium text-gray-900">{staff.name}</span>
+                                        <span className="text-sm font-medium text-gray-900">{staff.first_name} {staff.last_name}</span>
                                         <span className="text-xs text-gray-500">{staff.role}</span>
                                       </div>
                                     ))}
@@ -972,40 +1080,33 @@ export default function SchedulePage() {
             <div className="bg-white rounded-lg shadow-sm border">
               <div className="p-6 border-b">
                 <h2 className="text-xl font-semibold text-gray-900">Unassigned Staff</h2>
-                <p className="text-sm text-gray-500 mt-1">{unassignedStaff.length} staff members available</p>
+                <p className="text-sm text-gray-500 mt-1">{staffMembers.length} staff members available</p>
               </div>
               
               <div className="p-6">
-                {unassignedStaff.length === 0 ? (
+                {staffMembers.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <p>All staff assigned!</p>
                     <p className="text-sm">Drag staff from stations to reassign</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {unassignedStaff.map((staff) => (
+                    {staffMembers.map((staff) => (
                       <div
                         key={staff.id}
                         draggable
                         onDragStart={(e) => handleDragStart(e, staff)}
-                        className={`p-4 border rounded-lg hover:bg-gray-100 cursor-move transition-colors ${
-                          staff.conflicts.length > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50'
-                        }`}
+                        className="p-4 border rounded-lg hover:bg-gray-100 cursor-move transition-colors bg-gray-50"
                       >
                         <div className="mb-2">
                           <div className="flex items-center justify-between">
-                            <h3 className="font-medium text-gray-900">{staff.name}</h3>
-                            {staff.conflicts.length > 0 && (
-                              <span className="text-xs bg-red-100 text-red-800 rounded-full px-2 py-1">
-                                Conflicts
-                              </span>
-                            )}
+                            <h3 className="font-medium text-gray-900">{staff.first_name} {staff.last_name}</h3>
                           </div>
                           <p className="text-sm text-gray-600">{staff.role}</p>
                         </div>
                         
                         <div className="space-y-1 text-xs text-gray-500">
-                          <div>Perf {staff.performance}%</div>
+                          <div>Perf {staff.performance_score || 0}%</div>
                           <div>Avail {staff.availability && typeof staff.availability === 'object' 
                             ? Object.keys(staff.availability).filter(day => 
                                 staff.availability[day as keyof typeof staff.availability] && 
@@ -1013,18 +1114,9 @@ export default function SchedulePage() {
                               ).join(', ')
                             : 'Not specified'}</div>
                           <div>Stations: {staff.stations.join(', ')}</div>
-                          <div>Wage: ${staff.hourlyWage}/hr</div>
+                          <div>Wage: ${staff.hourly_wage}/hr</div>
                           
-                          {staff.conflicts.length > 0 && (
-                            <div className="mt-2 pt-2 border-t border-red-200">
-                              <div className="text-red-600 font-medium">Conflicts:</div>
-                              {staff.conflicts.map((conflict, index) => (
-                                <div key={index} className="text-red-500">
-                                  {conflict.type}: {conflict.reason} ({conflict.day})
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                          {/* Conflicts removed since database StaffMember type doesn't have conflicts */}
                         </div>
                       </div>
                     ))}

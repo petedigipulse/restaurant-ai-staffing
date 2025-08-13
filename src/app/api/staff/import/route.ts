@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { DatabaseService } from "@/lib/services/database";
+import { supabase } from "@/lib/supabase";
 import crypto from "crypto";
 
 export const dynamic = 'force-dynamic';
@@ -77,25 +78,22 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // First, ensure the organization exists
-    console.log('Ensuring organization exists before importing staff...');
-    const organization = await DatabaseService.createOrganization({
-      id: organizationId,
-      name: 'Restaurant Organization',
-      type: 'restaurant',
-      timezone: 'UTC',
-      operating_hours: {
-        monday: { open: '09:00', close: '22:00' },
-        tuesday: { open: '09:00', close: '22:00' },
-        wednesday: { open: '09:00', close: '22:00' },
-        thursday: { open: '09:00', close: '22:00' },
-        friday: { open: '09:00', close: '23:00' },
-        saturday: { open: '10:00', close: '23:00' },
-        sunday: { open: '10:00', close: '22:00' }
-      },
-      owner_id: crypto.randomUUID()
-    });
-    console.log('Organization created/verified:', organization);
+    // First, verify the organization exists
+    console.log('Verifying organization exists before importing staff...');
+    const { data: organization, error: orgError } = await supabase
+      .from('organizations')
+      .select('*')
+      .eq('id', organizationId)
+      .single();
+
+    if (orgError || !organization) {
+      console.error('Organization not found:', orgError);
+      return NextResponse.json({ 
+        error: "Organization not found" 
+      }, { status: 404 });
+    }
+
+    console.log('Organization verified:', organization);
 
     // Now import staff
     console.log('Calling DatabaseService.importStaffFromCSV with:', { organizationId, rowsCount: rows.length });
