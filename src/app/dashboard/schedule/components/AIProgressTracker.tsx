@@ -82,7 +82,10 @@ export default function AIProgressTracker({ isVisible, onComplete }: AIProgressT
       setProgressSteps(prev => 
         prev.map(step => ({ ...step, status: 'completed' as const }))
       );
-      setTimeout(onComplete, 1000);
+      // Ensure onComplete is called after a short delay to show completion
+      setTimeout(() => {
+        onComplete();
+      }, 1000);
     }, totalTime);
 
   }, [isVisible, onComplete]);

@@ -7,6 +7,7 @@ import ScheduleHistory from "./components/ScheduleHistory";
 import { useSession } from "next-auth/react";
 import AIOptimizationReport from './components/AIOptimizationReport';
 import AIProgressTracker from './components/AIProgressTracker';
+import ScheduleDetailsModal from './components/ScheduleDetailsModal';
 import { Button } from "@/components/ui/button";
 
 interface Shift {
@@ -171,6 +172,17 @@ export default function SchedulePage() {
   const [showScheduleHistory, setShowScheduleHistory] = useState(false);
   const [aiOptimizationReport, setAiOptimizationReport] = useState<any>(null);
   const [showAIProgress, setShowAIProgress] = useState(false);
+  const [showScheduleDetails, setShowScheduleDetails] = useState(false);
+  const [selectedSchedule, setSelectedSchedule] = useState<{
+    id: string;
+    week_start_date: string;
+    shifts: any;
+    total_labor_cost: number;
+    total_hours: number;
+    ai_generated: boolean;
+    created_at: string;
+    updated_at: string;
+  } | null>(null);
 
   // Load staff data from database
   useEffect(() => {
@@ -899,6 +911,25 @@ export default function SchedulePage() {
     }
   };
 
+  const handleViewScheduleDetails = (scheduleToView: {
+    id: string;
+    week_start_date: string;
+    shifts: any;
+    total_labor_cost: number;
+    total_hours: number;
+    ai_generated: boolean;
+    created_at: string;
+    updated_at: string;
+  }) => {
+    setSelectedSchedule(scheduleToView);
+    setShowScheduleDetails(true);
+  };
+
+  const handleCloseScheduleDetails = () => {
+    setShowScheduleDetails(false);
+    setSelectedSchedule(null);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -947,6 +978,48 @@ export default function SchedulePage() {
                   View AI Report
                 </Button>
               )}
+              
+              {/* View Schedule Details Button */}
+              <Button
+                onClick={() => {
+                  // Create a mock schedule object from current schedule data
+                  const mockSchedule = {
+                    id: 'current-schedule',
+                    week_start_date: new Date().toISOString().split('T')[0],
+                    shifts: schedule.reduce((acc, day) => {
+                      acc[day.day.toLowerCase().substring(0, 3)] = {
+                        lunch: {
+                          stations: day.lunch.stations.reduce((stationAcc, station) => {
+                            stationAcc[station.name] = {
+                              assignedStaff: station.assignedStaff || []
+                            };
+                            return stationAcc;
+                          }, {} as any)
+                        },
+                        dinner: {
+                          stations: day.dinner.stations.reduce((stationAcc, station) => {
+                            stationAcc[station.name] = {
+                              assignedStaff: station.assignedStaff || []
+                            };
+                            return stationAcc;
+                          }, {} as any)
+                        }
+                      };
+                      return acc;
+                    }, {} as any),
+                    total_labor_cost: 0, // Calculate this if needed
+                    total_hours: 0, // Calculate this if needed
+                    ai_generated: false,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                  };
+                  handleViewScheduleDetails(mockSchedule);
+                }}
+                variant="outline"
+                className="px-6 py-3 rounded-lg font-semibold border-blue-600 text-blue-600 hover:bg-blue-50 transition-all duration-200"
+              >
+                View Schedule Details
+              </Button>
             </div>
           </div>
           
@@ -1180,6 +1253,12 @@ export default function SchedulePage() {
         <AIOptimizationReport
           report={aiOptimizationReport}
           onClose={() => setAiOptimizationReport(null)}
+        />
+
+        {/* Schedule Details Modal */}
+        <ScheduleDetailsModal
+          schedule={selectedSchedule}
+          onClose={handleCloseScheduleDetails}
         />
       </div>
     </div>
