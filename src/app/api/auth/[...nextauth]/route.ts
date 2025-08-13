@@ -4,7 +4,7 @@ import { env } from "@/lib/env";
 
 // Force dynamic rendering to prevent prerendering issues
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = false;
 
 const authOptions: NextAuthOptions = {
   providers: [

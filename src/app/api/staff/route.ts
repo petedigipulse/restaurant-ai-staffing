@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 // Force dynamic rendering to prevent prerendering issues
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = false;
 
 export async function GET() {
   try {

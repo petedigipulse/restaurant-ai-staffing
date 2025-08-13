@@ -62,8 +62,7 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Disable static generation
-export const revalidate = false;
+// No static generation configuration needed
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
