@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { DatabaseService } from "@/lib/services/database";
 import { StaffMember } from "@/lib/supabase";
 import WeatherForecast from "./components/WeatherForecast";
@@ -196,7 +196,7 @@ export default function SchedulePage() {
   const [scheduleDays, setScheduleDays] = useState<ScheduleDay[]>([]);
 
   // Generate schedule days based on selected date range
-  const generateScheduleDays = (startDate: Date, endDate: Date) => {
+  const generateScheduleDays = useCallback((startDate: Date, endDate: Date) => {
     const days: ScheduleDay[] = [];
     const currentDate = new Date(startDate);
     
@@ -234,61 +234,17 @@ export default function SchedulePage() {
     }
     
     setScheduleDays(days);
-  };
+  }, []);
 
   // Handle date range changes
-  const handleDateRangeChange = (startDate: Date, endDate: Date) => {
-    console.log('🎯 Schedule Page: handleDateRangeChange called with:', startDate, endDate);
+  const handleDateRangeChange = useCallback((startDate: Date, endDate: Date) => {
     setSelectedStartDate(startDate);
     setSelectedEndDate(endDate);
     generateScheduleDays(startDate, endDate);
-  };
-
-  // Load staff data from database
-  useEffect(() => {
-    const loadStaffData = async () => {
-      try {
-        // Get organization ID for the current authenticated user
-        const currentOrgId = await DatabaseService.getCurrentUserOrganizationId();
-        if (!currentOrgId) {
-          console.error('No organization ID found for current user');
-          setIsLoading(false);
-          return;
-        }
-        
-        setOrganizationId(currentOrgId);
-        
-        // Load staff members
-        const staffData = await DatabaseService.getStaffMembers(currentOrgId);
-        setStaffMembers(staffData);
-        
-        // Initialize schedule days with current week
-        const today = new Date();
-        const weekStart = new Date(today);
-        weekStart.setDate(today.getDate() - today.getDay() + 1); // Monday
-        
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6); // Sunday
-        
-        setSelectedStartDate(weekStart);
-        setSelectedEndDate(weekEnd);
-        generateScheduleDays(weekStart, weekEnd);
-        
-        // Load existing schedule
-        await loadExistingSchedule(currentOrgId);
-        
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Error loading staff data:', error);
-        setIsLoading(false);
-      }
-    };
-    
-    loadStaffData();
-  }, []);
+  }, [generateScheduleDays]);
 
   // Load existing schedule from database
-  const loadExistingSchedule = async (orgId: string) => {
+  const loadExistingSchedule = useCallback(async (orgId: string) => {
     try {
       // Use the selected date range instead of hardcoded current week
       const startDateString = selectedStartDate.toISOString().split('T')[0];
@@ -346,7 +302,7 @@ export default function SchedulePage() {
                             last_name: dbStaff.last_name || '',
                             role: dbStaff.role || 'Staff',
                             performance_score: 80,
-                            availability: { monday: { available: true }, tuesday: { available: true }, wednesday: { available: true }, thursday: { available: true }, friday: { available: true } },
+                            availability: { monday: { available: true }, tuesday: { available: true }, wednesday: { available: true }, thursday: { available: true }, friday: { available:true } },
                             stations: [station.name],
                             hourly_wage: dbStaff.hourly_wage || 25,
                             organization_id: orgId,
@@ -424,7 +380,7 @@ export default function SchedulePage() {
                         }
                       });
                       
-                      console.log(`🎯 Final assigned staff for dinner:`, assignedStaff);
+                      console.log(`🎯 Final assigned staff for dinner:`, dbStation.assignedStaff);
                       
                       return {
                         ...station,
@@ -448,7 +404,50 @@ export default function SchedulePage() {
     } catch (error) {
       console.error('❌ Error loading existing schedule:', error);
     }
-  };
+  }, [selectedStartDate, selectedEndDate, scheduleDays, staffMembers]);
+
+  // Load staff data from database
+  useEffect(() => {
+    const loadStaffData = async () => {
+      try {
+        // Get organization ID for the current authenticated user
+        const currentOrgId = await DatabaseService.getCurrentUserOrganizationId();
+        if (!currentOrgId) {
+          console.error('No organization ID found for current user');
+          setIsLoading(false);
+          return;
+        }
+        
+        setOrganizationId(currentOrgId);
+        
+        // Load staff members
+        const staffData = await DatabaseService.getStaffMembers(currentOrgId);
+        setStaffMembers(staffData);
+        
+        // Initialize schedule days with current week
+        const today = new Date();
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay() + 1); // Monday
+        
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6); // Sunday
+        
+        setSelectedStartDate(weekStart);
+        setSelectedEndDate(weekEnd);
+        generateScheduleDays(weekStart, weekEnd);
+        
+        // Load existing schedule
+        await loadExistingSchedule(currentOrgId);
+        
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error loading staff data:', error);
+        setIsLoading(false);
+      }
+    };
+    
+    loadStaffData();
+  }, [generateScheduleDays, loadExistingSchedule]);
 
   const handleDragStart = (e: React.DragEvent, staff: StaffMember) => {
     setDraggedStaff(staff);
