@@ -6,15 +6,16 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
-export default function LoginPage() {
+export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  // Redirect if already logged in - use useEffect to avoid render-time navigation
+  // Redirect if already logged in
   useEffect(() => {
     if (session && status === 'authenticated') {
       router.push('/dashboard');
@@ -43,7 +44,22 @@ export default function LoginPage() {
     setIsLoading(true);
     setError('');
 
+    // Basic validation
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      setIsLoading(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      setIsLoading(false);
+      return;
+    }
+
     try {
+      // For now, we'll use the same signIn flow since we're using credentials
+      // In a real app, you'd have a separate signup API endpoint
       const result = await signIn('credentials', {
         email,
         password,
@@ -51,23 +67,15 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError('Invalid credentials. Please try again.');
+        setError('Account creation failed. Please try again.');
       } else {
         // Store user email in localStorage for onboarding process
         localStorage.setItem('userEmail', email);
-        console.log('User email stored in localStorage:', email);
+        localStorage.setItem('isNewUser', 'true');
+        console.log('New user email stored in localStorage:', email);
         
-        // Check if this is a new user or returning user
-        const isNewUser = localStorage.getItem('isNewUser') === 'true';
-        
-        if (isNewUser) {
-          // New user - redirect to onboarding
-          localStorage.removeItem('isNewUser'); // Clear the flag
-          router.push('/onboarding');
-        } else {
-          // Returning user - redirect to dashboard
-          router.push('/dashboard');
-        }
+        // Successful signup - redirect to onboarding
+        router.push('/onboarding');
       }
     } catch (error) {
       setError('An error occurred. Please try again.');
@@ -85,11 +93,11 @@ export default function LoginPage() {
             <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <span className="text-white font-bold text-2xl">AI</span>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900">Welcome Back</h1>
-            <p className="text-gray-600 mt-2">Sign in to your account</p>
+            <h1 className="text-3xl font-bold text-gray-900">Create Account</h1>
+            <p className="text-gray-600 mt-2">Join thousands of restaurants optimizing their staffing</p>
           </div>
 
-          {/* Login Form */}
+          {/* Signup Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
@@ -122,8 +130,24 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                minLength={6}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
-                placeholder="Enter your password"
+                placeholder="Create a password"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                Confirm Password
+              </label>
+              <input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+                placeholder="Confirm your password"
               />
             </div>
 
@@ -132,24 +156,24 @@ export default function LoginPage() {
               disabled={isLoading}
               className="w-full py-3 text-lg font-semibold"
             >
-              {isLoading ? 'Signing In...' : 'Sign In'}
+              {isLoading ? 'Creating Account...' : 'Create Account'}
             </Button>
           </form>
 
           {/* Footer */}
           <div className="mt-8 text-center">
             <p className="text-gray-600">
-              Don't have an account?{' '}
-              <Link href="/signup" className="text-purple-600 hover:text-purple-700 font-medium">
-                Create one here
+              Already have an account?{' '}
+              <Link href="/login" className="text-purple-600 hover:text-purple-700 font-medium">
+                Sign in here
               </Link>
             </p>
           </div>
 
-          {/* Demo Credentials */}
+          {/* Demo Info */}
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-600 text-center">
-              <strong>Demo Login:</strong> Use any email and password combination
+              <strong>Demo Account:</strong> Use any email and password combination
             </p>
           </div>
         </div>

@@ -17,12 +17,6 @@ export default function Home() {
             </div>
             <div className="flex items-center space-x-4">
               <LoginButton />
-              <Link
-                href="/dashboard"
-                className="px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors shadow-lg hover:shadow-xl"
-              >
-                Go To Dashboard
-              </Link>
             </div>
           </div>
         </div>
@@ -38,9 +32,25 @@ export default function Home() {
               Smoother Service.
             </span>
           </h1>
-          <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
+          <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed mb-8">
             Designed for restaurants, hotels, and the wider hospitality industry, our AI-powered dashboard creates efficient schedules by factoring in key data points like weather forecasts, HR systems, cash flow, and historical sales trends. The result: reduced costs, improved service, and better staff satisfaction.
           </p>
+          
+          {/* Authentication Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <Link
+              href="/signup"
+              className="px-8 py-4 bg-purple-600 text-white text-xl font-semibold rounded-lg hover:bg-purple-700 transition-colors shadow-lg hover:shadow-xl"
+            >
+              Get Started - Free
+            </Link>
+            <Link
+              href="/login"
+              className="px-8 py-4 border-2 border-purple-600 text-purple-600 text-xl font-semibold rounded-lg hover:bg-purple-50 transition-colors"
+            >
+              Sign In
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -152,10 +162,10 @@ export default function Home() {
             Clients using our system regularly achieve savings through overtime reduction, overstaffing prevention, and skill-based optimization – without compromising guest experience.
           </p>
           <Link
-            href="/dashboard"
+            href="/signup"
             className="inline-block px-8 py-4 bg-purple-600 text-white text-xl font-semibold rounded-lg hover:bg-purple-700 transition-colors shadow-lg hover:shadow-xl"
           >
-            Go To Dashboard
+            Get Started Free
           </Link>
         </div>
       </section>
