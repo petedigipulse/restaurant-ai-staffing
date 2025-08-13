@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { DatabaseService } from "@/lib/services/database";
 import { StaffMember } from "@/lib/supabase";
+import AddStaffModal from "./components/AddStaffModal";
 
 export default function StaffPage() {
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
@@ -13,6 +14,12 @@ export default function StaffPage() {
   const [employmentFilter, setEmploymentFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<keyof StaffMember>("first_name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  
+  // Modal states
+  const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   // Load staff data from database
   useEffect(() => {
@@ -42,6 +49,102 @@ export default function StaffPage() {
 
     loadStaffData();
   }, []);
+
+  // Handle CSV import
+  const handleCSVImport = async () => {
+    if (!csvFile || !organizationId) return;
+
+    setIsImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', csvFile);
+      
+      const response = await fetch('/api/staff/import', {
+        method: 'POST',
+        headers: {
+          'x-organization-id': organizationId,
+        },
+        body: csvFile
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(`Successfully imported ${result.imported} staff members!`);
+        
+        // Reload staff data
+        const staff = await DatabaseService.getStaffMembers(organizationId);
+        setStaffMembers(staff || []);
+        
+        // Reset form
+        setCsvFile(null);
+        setShowImportModal(false);
+      } else {
+        const error = await response.json();
+        alert(`Import failed: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('CSV import error:', error);
+      alert('Failed to import CSV. Please try again.');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  // Download CSV template
+  const downloadCSVTemplate = () => {
+    const headers = [
+      'first_name',
+      'last_name', 
+      'email',
+      'role',
+      'hourly_wage',
+      'guaranteed_hours',
+      'employment_type',
+      'performance_score',
+      'stations',
+      'phone',
+      'emergency_contact',
+      'start_date'
+    ];
+    
+    const sampleData = [
+      'John',
+      'Smith',
+      'john.smith@restaurant.com',
+      'Server',
+      '25.00',
+      '20',
+      'part-time',
+      '85',
+      'Front of House,Bar',
+      '+1234567890',
+      'Jane Smith (Spouse)',
+      '2024-01-15'
+    ];
+    
+    const csvContent = [
+      headers.join(','),
+      sampleData.join(',')
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'staff_template.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  // Handle successful staff addition
+  const handleStaffAdded = async () => {
+    if (organizationId) {
+      const staff = await DatabaseService.getStaffMembers(organizationId);
+      setStaffMembers(staff || []);
+    }
+  };
 
   // Filter and sort staff data
   const filteredAndSortedStaff = staffMembers.filter(staff => {
@@ -124,16 +227,16 @@ export default function StaffPage() {
         </div>
         <div className="flex items-center space-x-4">
           <button
+            onClick={() => setShowImportModal(true)}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            disabled
           >
-            Import CSV (Coming Soon)
+            Import CSV
           </button>
           <button
+            onClick={() => setShowAddStaffModal(true)}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-            disabled
           >
-            Add New Staff (Coming Soon)
+            Add New Staff
           </button>
         </div>
       </div>
@@ -219,8 +322,22 @@ export default function StaffPage() {
           <div className="text-6xl mb-4">👥</div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No staff members yet</h3>
           <p className="text-gray-500 mb-4">
-            Staff members will appear here after completing the onboarding process
+            Get started by adding your first staff member or importing a CSV file
           </p>
+          <div className="flex justify-center space-x-4">
+            <button
+              onClick={() => setShowAddStaffModal(true)}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Add First Staff Member
+            </button>
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              Import CSV
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -307,6 +424,75 @@ export default function StaffPage() {
           >
             Clear all filters
           </button>
+        </div>
+      )}
+
+      {/* Add Staff Modal */}
+      {showAddStaffModal && (
+        <AddStaffModal
+          organizationId={organizationId}
+          onClose={() => setShowAddStaffModal(false)}
+          onSuccess={handleStaffAdded}
+        />
+      )}
+
+      {/* Import CSV Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-xl font-semibold">Import Staff from CSV</h2>
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select CSV File
+                </label>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  CSV should include: first_name, last_name, email, role, hourly_wage, performance_score
+                </p>
+                <button
+                  type="button"
+                  onClick={downloadCSVTemplate}
+                  className="text-sm text-blue-600 hover:text-blue-800 underline mt-2"
+                >
+                  Download CSV Template
+                </button>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowImportModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCSVImport}
+                  disabled={!csvFile || isImporting}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                >
+                  {isImporting ? 'Importing...' : 'Import CSV'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
