@@ -981,39 +981,32 @@ export default function SchedulePage() {
               
               {/* View Schedule Details Button */}
               <Button
-                onClick={() => {
-                  // Create a mock schedule object from current schedule data
-                  const mockSchedule = {
-                    id: 'current-schedule',
-                    week_start_date: new Date().toISOString().split('T')[0],
-                    shifts: schedule.reduce((acc, day) => {
-                      acc[day.day.toLowerCase().substring(0, 3)] = {
-                        lunch: {
-                          stations: day.lunch.stations.reduce((stationAcc, station) => {
-                            stationAcc[station.name] = {
-                              assignedStaff: station.assignedStaff || []
-                            };
-                            return stationAcc;
-                          }, {} as any)
-                        },
-                        dinner: {
-                          stations: day.dinner.stations.reduce((stationAcc, station) => {
-                            stationAcc[station.name] = {
-                              assignedStaff: station.assignedStaff || []
-                            };
-                            return stationAcc;
-                          }, {} as any)
-                        }
-                      };
-                      return acc;
-                    }, {} as any),
-                    total_labor_cost: 0, // Calculate this if needed
-                    total_hours: 0, // Calculate this if needed
-                    ai_generated: false,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                  };
-                  handleViewScheduleDetails(mockSchedule);
+                onClick={async () => {
+                  if (!organizationId) return;
+                  
+                  try {
+                    // Fetch the actual saved schedule from database
+                    const response = await fetch(`/api/schedule?organizationId=${organizationId}`);
+                    if (response.ok) {
+                      const savedSchedules = await response.json();
+                      if (savedSchedules && savedSchedules.length > 0) {
+                        // Use the most recent schedule
+                        const latestSchedule = savedSchedules[0];
+                        console.log('📅 Using saved schedule for details:', latestSchedule);
+                        handleViewScheduleDetails(latestSchedule);
+                      } else {
+                        setConflictAlert('No saved schedules found. Please save a schedule first.');
+                        setTimeout(() => setConflictAlert(null), 5000);
+                      }
+                    } else {
+                      setConflictAlert('Failed to fetch saved schedules.');
+                      setTimeout(() => setConflictAlert(null), 5000);
+                    }
+                  } catch (error) {
+                    console.error('Error fetching saved schedules:', error);
+                    setConflictAlert('Failed to fetch saved schedules.');
+                    setTimeout(() => setConflictAlert(null), 5000);
+                  }
                 }}
                 variant="outline"
                 className="px-6 py-3 rounded-lg font-semibold border-blue-600 text-blue-600 hover:bg-blue-50 transition-all duration-200"
@@ -1239,7 +1232,10 @@ export default function SchedulePage() {
         {/* Schedule History */}
         {organizationId && (
           <div className="mt-8">
-            <ScheduleHistory organizationId={organizationId} />
+            <ScheduleHistory 
+              organizationId={organizationId} 
+              onViewScheduleDetails={handleViewScheduleDetails}
+            />
           </div>
         )}
 

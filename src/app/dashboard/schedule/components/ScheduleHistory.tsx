@@ -8,13 +8,16 @@ interface Schedule {
   total_hours: number;
   ai_generated: boolean;
   created_at: string;
+  shifts: any; // Make shifts required
+  updated_at: string; // Make updated_at required
 }
 
 interface ScheduleHistoryProps {
   organizationId: string;
+  onViewScheduleDetails: (schedule: Schedule) => void; // Add callback prop
 }
 
-export default function ScheduleHistory({ organizationId }: ScheduleHistoryProps) {
+export default function ScheduleHistory({ organizationId, onViewScheduleDetails }: ScheduleHistoryProps) {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -26,17 +29,20 @@ export default function ScheduleHistory({ organizationId }: ScheduleHistoryProps
           const data = await response.json();
           console.log('📅 ScheduleHistory API response:', data);
           
-          // Handle the new API response structure
-          if (data.success && data.scheduleId) {
-            // If we have a schedule, create a single item array
-            setSchedules([{
-              id: data.scheduleId,
-              week_start_date: data.weekStart || new Date().toISOString(),
-              total_labor_cost: data.totalLaborCost || 0,
-              total_hours: data.totalHours || 0,
-              ai_generated: true, // Assume AI generated for now
-              created_at: new Date().toISOString()
-            }]);
+          // Handle the API response structure - data should be an array of schedules
+          if (Array.isArray(data) && data.length > 0) {
+            // Transform the data to match our interface
+            const transformedSchedules = data.map((schedule: any) => ({
+              id: schedule.id,
+              week_start_date: schedule.week_start_date,
+              total_labor_cost: schedule.total_labor_cost || 0,
+              total_hours: schedule.total_hours || 0,
+              ai_generated: schedule.ai_generated || false,
+              created_at: schedule.created_at,
+              updated_at: schedule.updated_at,
+              shifts: schedule.shifts // Include shifts data for details modal
+            }));
+            setSchedules(transformedSchedules);
           } else {
             // No schedules found
             setSchedules([]);
@@ -141,7 +147,10 @@ export default function ScheduleHistory({ organizationId }: ScheduleHistoryProps
                   </span>
                 </div>
                 
-                <button className="text-sm text-purple-600 hover:text-purple-700 font-medium">
+                <button 
+                  onClick={() => onViewScheduleDetails(schedule)}
+                  className="text-sm text-purple-600 hover:text-purple-700 font-medium hover:underline cursor-pointer"
+                >
                   View Details
                 </button>
               </div>
