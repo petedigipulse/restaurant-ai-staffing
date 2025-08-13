@@ -29,6 +29,8 @@ export default function DateRangePicker({ onDateRangeChange, className = "" }: D
   }, [onDateRangeChange]);
 
   const handlePresetChange = (preset: string) => {
+    console.log('🎯 DateRangePicker: handlePresetChange called with preset:', preset);
+    
     const today = new Date();
     let start: Date;
     let end: Date;
@@ -71,9 +73,13 @@ export default function DateRangePicker({ onDateRangeChange, className = "" }: D
         return;
     }
 
+    console.log('🎯 DateRangePicker: Calculated dates - start:', start.toISOString(), 'end:', end.toISOString());
+
     setStartDate(start.toISOString().split('T')[0]);
     setEndDate(end.toISOString().split('T')[0]);
     setSelectedPreset(preset);
+    
+    console.log('🎯 DateRangePicker: Calling onDateRangeChange with:', start, end);
     onDateRangeChange(start, end);
   };
 
@@ -134,47 +140,83 @@ export default function DateRangePicker({ onDateRangeChange, className = "" }: D
         </div>
 
         {/* Preset Buttons */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2" style={{ position: 'relative', zIndex: 10 }}>
           <Button
             variant={selectedPreset === "current-week" ? "default" : "outline"}
-            size="sm"
-            onClick={() => handlePresetChange("current-week")}
-            className="text-xs"
+            onClick={() => {
+              console.log('🎯 Button clicked: Current Week');
+              handlePresetChange("current-week");
+            }}
+            className="text-xs px-3 py-1 cursor-pointer hover:scale-105 transition-transform"
+            style={{ position: 'relative', zIndex: 20 }}
           >
             Current Week
           </Button>
           <Button
             variant={selectedPreset === "next-week" ? "default" : "outline"}
-            size="sm"
-            onClick={() => handlePresetChange("next-week")}
-            className="text-xs"
+            onClick={() => {
+              console.log('🎯 Button clicked: Next Week');
+              handlePresetChange("next-week");
+            }}
+            className="text-xs px-3 py-1 cursor-pointer hover:scale-105 transition-transform"
+            style={{ position: 'relative', zIndex: 20 }}
           >
             Next Week
           </Button>
           <Button
             variant={selectedPreset === "two-weeks" ? "default" : "outline"}
-            size="sm"
-            onClick={() => handlePresetChange("two-weeks")}
-            className="text-xs"
+            onClick={() => {
+              console.log('🎯 Button clicked: 2 Weeks');
+              handlePresetChange("two-weeks");
+            }}
+            className="text-xs px-3 py-1 cursor-pointer hover:scale-105 transition-transform"
+            style={{ position: 'relative', zIndex: 20 }}
           >
             2 Weeks
           </Button>
           <Button
             variant={selectedPreset === "four-weeks" ? "default" : "outline"}
-            size="sm"
-            onClick={() => handlePresetChange("four-weeks")}
-            className="text-xs"
+            onClick={() => {
+              console.log('🎯 Button clicked: 4 Weeks');
+              handlePresetChange("four-weeks");
+            }}
+            className="text-xs px-3 py-1 cursor-pointer hover:scale-105 transition-transform"
+            style={{ position: 'relative', zIndex: 20 }}
           >
             4 Weeks
           </Button>
           <Button
             variant={selectedPreset === "custom" ? "default" : "outline"}
-            size="sm"
-            onClick={() => handlePresetChange("custom")}
-            className="text-xs"
+            onClick={() => {
+              console.log('🎯 Button clicked: Custom');
+              handlePresetChange("custom");
+            }}
+            className="text-xs px-3 py-1 cursor-pointer hover:scale-105 transition-transform"
+            style={{ position: 'relative', zIndex: 20 }}
           >
             Custom
           </Button>
+        </div>
+
+        {/* Test Button */}
+        <div className="mt-2">
+          <button
+            onClick={() => console.log('🎯 Test button clicked!')}
+            className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+          >
+            Test Button (Click me!)
+          </button>
+          
+          {/* Regular HTML button test */}
+          <button
+            onClick={() => {
+              console.log('🎯 Regular HTML button clicked!');
+              alert('Regular HTML button works!');
+            }}
+            className="ml-2 px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+          >
+            HTML Button Test
+          </button>
         </div>
 
         {/* Custom Date Inputs */}
@@ -217,9 +259,8 @@ export default function DateRangePicker({ onDateRangeChange, className = "" }: D
           </div>
           <Button
             variant="outline"
-            size="sm"
             onClick={() => handlePresetChange("current-week")}
-            className="text-xs"
+            className="text-xs px-3 py-1"
           >
             Reset to Current Week
           </Button>

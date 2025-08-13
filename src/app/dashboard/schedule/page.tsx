@@ -238,6 +238,7 @@ export default function SchedulePage() {
 
   // Handle date range changes
   const handleDateRangeChange = (startDate: Date, endDate: Date) => {
+    console.log('🎯 Schedule Page: handleDateRangeChange called with:', startDate, endDate);
     setSelectedStartDate(startDate);
     setSelectedEndDate(endDate);
     generateScheduleDays(startDate, endDate);
