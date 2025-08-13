@@ -5,6 +5,9 @@ import { StaffMember } from "@/lib/supabase";
 import WeatherForecast from "./components/WeatherForecast";
 import ScheduleHistory from "./components/ScheduleHistory";
 import { useSession } from "next-auth/react";
+import AIOptimizationReport from './components/AIOptimizationReport';
+import AIProgressTracker from './components/AIProgressTracker';
+import { Button } from "@/components/ui/button";
 
 interface Shift {
   id: string;
@@ -165,6 +168,9 @@ export default function SchedulePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [aiProgress, setAiProgress] = useState(0);
+  const [showScheduleHistory, setShowScheduleHistory] = useState(false);
+  const [aiOptimizationReport, setAiOptimizationReport] = useState<any>(null);
+  const [showAIProgress, setShowAIProgress] = useState(false);
 
   // Load staff data from database
   useEffect(() => {
@@ -552,23 +558,20 @@ export default function SchedulePage() {
 
   const generateAISchedule = async () => {
     if (!organizationId) {
-      setConflictAlert('Please complete onboarding to set up your organization first');
-      setTimeout(() => setConflictAlert(null), 8000);
+      setConflictAlert('Organization ID not found. Please refresh the page.');
       return;
     }
 
     setIsGeneratingAI(true);
-    setConflictAlert('🤖 AI is analyzing your data and generating an optimized schedule...');
+    setShowAIProgress(true); // Show progress tracker
     
     try {
-      // Calculate week start date
+      // Calculate current week start (Monday)
       const today = new Date();
       const weekStart = new Date(today);
       weekStart.setDate(today.getDate() - today.getDay() + 1); // Monday
       const weekStartString = weekStart.toISOString().split('T')[0];
 
-      console.log('🚀 Calling AI-powered schedule optimization...');
-      
       const response = await fetch('/api/ai/schedule/optimize', {
         method: 'POST',
         headers: {
@@ -576,91 +579,97 @@ export default function SchedulePage() {
         },
         body: JSON.stringify({
           organizationId,
-          weekStart: weekStartString
-        })
+          weekStart: weekStartString,
+        }),
       });
 
       if (response.ok) {
         const result = await response.json();
-        console.log('✅ AI schedule optimization result:', result);
         
-        // Apply the AI-generated schedule
-        if (result.schedule) {
-          // Transform AI schedule format to our local format
-          const aiSchedule = result.schedule;
-          
-          // Update our local schedule state with AI recommendations
-          setSchedule(prevSchedule => {
-            return prevSchedule.map(day => {
-              const aiDay = aiSchedule[day.day.toLowerCase()];
-              if (aiDay) {
-                return {
-                  ...day,
-                  lunch: {
-                    ...day.lunch,
-                    stations: day.lunch.stations.map(station => {
-                      const aiStation = aiDay.lunch?.stations?.[station.name.toLowerCase()];
-                      if (aiStation?.assignedStaff) {
-                        // Map AI staff assignments to our staff data
-                        const assignedStaff = aiStation.assignedStaff.map((aiStaff: any) => {
-                          const staffMember = staffMembers.find(s => s.id === aiStaff.id);
-                          return staffMember || {
-                            id: aiStaff.id,
-                            first_name: aiStaff.first_name,
-                            last_name: aiStaff.last_name,
-                            role: aiStaff.role,
-                            performance_score: 80,
-                            availability: { monday: { available: true }, tuesday: { available: true }, wednesday: { available: true }, thursday: { available: true }, friday: { available: true } },
-                            stations: [station.name],
-                            hourly_wage: 25,
-                            conflicts: []
-                          };
-                        });
-                        
-                        return {
-                          ...station,
-                          assignedStaff,
-                          color: (assignedStaff.length >= station.requiredCapacity ? 'green' : 'yellow') as 'green' | 'yellow' | 'red'
-                        };
-                      }
-                      return station;
-                    })
-                  },
-                  dinner: {
-                    ...day.dinner,
-                    stations: day.dinner.stations.map(station => {
-                      const aiStation = aiDay.dinner?.stations?.[station.name.toLowerCase()];
-                      if (aiStation?.assignedStaff) {
-                        const assignedStaff = aiStation.assignedStaff.map((aiStaff: any) => {
-                          const staffMember = staffMembers.find(s => s.id === aiStaff.id);
-                          return staffMember || {
-                            id: aiStaff.id,
-                            first_name: aiStaff.first_name,
-                            last_name: aiStaff.last_name,
-                            role: aiStaff.role,
-                            performance_score: 80,
-                            availability: { monday: { available: true }, tuesday: { available: true }, wednesday: { available: true }, thursday: { available: true }, friday: { available: true } },
-                            stations: [station.name],
-                            hourly_wage: 25,
-                            conflicts: []
-                          };
-                        });
-                        
-                        return {
-                          ...station,
-                          assignedStaff,
-                          color: (assignedStaff.length >= station.requiredCapacity ? 'green' : 'yellow') as 'green' | 'yellow' | 'red'
-                        };
-                      }
-                      return station;
-                    })
-                  }
-                };
-              }
-              return day;
-            });
+        if (result.success && result.schedule) {
+          // Store the AI optimization report
+          setAiOptimizationReport({
+            reasoning: result.reasoning || 'AI analysis completed successfully.',
+            expectedEfficiency: result.metrics?.expectedEfficiency || 85,
+            costSavings: result.metrics?.costSavings || 0,
+            totalLaborCost: result.metrics?.totalLaborCost || 0,
+            totalHours: result.metrics?.totalHours || 0,
+            recommendations: result.recommendations || [],
+            nextSteps: result.nextSteps || [],
+            aiCost: result.aiCost || 0
           });
 
+          // Update the schedule with AI-generated assignments
+          const aiSchedule = result.schedule;
+          const updatedSchedule = schedule.map(day => {
+            const aiDay = aiSchedule[day.day.toLowerCase()];
+            if (aiDay) {
+              return {
+                ...day,
+                lunch: {
+                  ...day.lunch,
+                  stations: day.lunch.stations.map(station => {
+                    const aiStation = aiDay.lunch?.stations?.[station.name.toLowerCase()];
+                    if (aiStation?.assignedStaff) {
+                      const assignedStaff = aiStation.assignedStaff.map((aiStaff: any) => {
+                        const staffMember = staffMembers.find(s => s.id === aiStaff.id);
+                        return staffMember || {
+                          id: aiStaff.id,
+                          first_name: aiStaff.first_name,
+                          last_name: aiStaff.last_name,
+                          role: aiStaff.role,
+                          performance_score: 80,
+                          availability: { monday: { available: true }, tuesday: { available: true }, wednesday: { available: true }, thursday: { available: true }, friday: { available: true } },
+                          stations: [station.name],
+                          hourly_wage: 25,
+                          conflicts: []
+                        };
+                      });
+                      
+                      return {
+                        ...station,
+                        assignedStaff,
+                        color: (assignedStaff.length >= station.requiredCapacity ? 'green' : 'yellow') as 'green' | 'yellow' | 'red'
+                      };
+                    }
+                    return station;
+                  })
+                },
+                dinner: {
+                  ...day.dinner,
+                  stations: day.dinner.stations.map(station => {
+                    const aiStation = aiDay.dinner?.stations?.[station.name.toLowerCase()];
+                    if (aiStation?.assignedStaff) {
+                      const assignedStaff = aiStation.assignedStaff.map((aiStaff: any) => {
+                        const staffMember = staffMembers.find(s => s.id === aiStaff.id);
+                        return staffMember || {
+                          id: aiStaff.id,
+                          first_name: aiStaff.first_name,
+                          last_name: aiStaff.last_name,
+                          role: aiStaff.role,
+                          performance_score: 80,
+                          availability: { monday: { available: true }, tuesday: { available: true }, wednesday: { available: true }, thursday: { available: true }, friday: { available: true } },
+                          stations: [station.name],
+                          hourly_wage: 25,
+                          conflicts: []
+                        };
+                      });
+                      
+                      return {
+                        ...station,
+                        assignedStaff,
+                        color: (assignedStaff.length >= station.requiredCapacity ? 'green' : 'yellow') as 'green' | 'yellow' | 'red'
+                      };
+                    }
+                    return station;
+                  })
+                }
+              };
+            }
+            return day;
+          });
+
+          setSchedule(updatedSchedule);
           setConflictAlert(`🎉 AI Schedule Generated! ${result.reasoning ? 'Reasoning: ' + result.reasoning.substring(0, 100) + '...' : ''} Expected Efficiency: ${result.metrics?.expectedEfficiency}%, Cost Savings: $${result.metrics?.costSavings}`);
           
           // Reload schedule data from database to show the new AI-generated assignments
@@ -679,6 +688,7 @@ export default function SchedulePage() {
       setConflictAlert('Failed to generate AI schedule. Please try again.');
     } finally {
       setIsGeneratingAI(false);
+      setShowAIProgress(false); // Hide progress tracker
       setTimeout(() => setConflictAlert(null), 10000);
     }
   };
@@ -919,20 +929,24 @@ export default function SchedulePage() {
                 Save Schedule
               </button>
               
-              <button
+              <Button
                 onClick={generateAISchedule}
-                disabled={isGeneratingAI}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isGeneratingAI || !organizationId}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
               >
-                {isGeneratingAI ? (
-                  <>
-                    <span className="animate-spin mr-2">⏳</span>
-                    <span>Generating...</span>
-                  </>
-                ) : (
-                  <span>Generate AI Schedule</span>
-                )}
-              </button>
+                {isGeneratingAI ? 'Generating...' : 'Generate AI Schedule'}
+              </Button>
+              
+              {/* View AI Report Button */}
+              {aiOptimizationReport && (
+                <Button
+                  onClick={() => setAiOptimizationReport(null)}
+                  variant="outline"
+                  className="px-6 py-3 rounded-lg font-semibold border-purple-600 text-purple-600 hover:bg-purple-50 transition-all duration-200"
+                >
+                  View AI Report
+                </Button>
+              )}
             </div>
           </div>
           
@@ -1155,6 +1169,18 @@ export default function SchedulePage() {
             <ScheduleHistory organizationId={organizationId} />
           </div>
         )}
+
+        {/* AI Progress Tracker */}
+        <AIProgressTracker
+          isVisible={showAIProgress}
+          onComplete={() => setShowAIProgress(false)}
+        />
+
+        {/* AI Optimization Report */}
+        <AIOptimizationReport
+          report={aiOptimizationReport}
+          onClose={() => setAiOptimizationReport(null)}
+        />
       </div>
     </div>
   );
