@@ -29,6 +29,7 @@ export default function HistoricalDataStep({ data, updateData }: Props) {
   const [localData, setLocalData] = useState(data);
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [importSuccess, setImportSuccess] = useState<string | null>(null);
 
   const handleChange = (field: string, value: any) => {
     const newData = { ...localData, [field]: value };
@@ -58,19 +59,98 @@ export default function HistoricalDataStep({ data, updateData }: Props) {
     handleChange('salesData', newSalesData);
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
+    if (!file) return;
+
+    try {
       setUploadedFile(file);
-      // In a real app, you'd parse the CSV/Excel file here
-      // For now, we'll simulate some sample data
-      const sampleData = [
-        { date: '2024-07-01', timeOfDay: '11:00', totalSales: 500.25, customerCount: 20, stationSales: 'Kitchen: 350.50, Front of House: 150.00' },
-        { date: '2024-07-01', timeOfDay: '12:00', totalSales: 820.75, customerCount: 35, stationSales: 'Kitchen: 550.00, Front of House: 270.75' },
-        { date: '2024-07-01', timeOfDay: '17:00', totalSales: 1250, customerCount: 50, stationSales: 'Kitchen: 600.00, Bar: 300.00, FOH: 350.00' }
-      ];
-      handleChange('salesData', sampleData);
+      
+      if (file.name.endsWith('.csv')) {
+        const text = await file.text();
+        const lines = text.split(/\r?\n/).filter(Boolean);
+        
+        if (lines.length < 2) {
+          alert('CSV must have at least a header row and one data row');
+          return;
+        }
+        
+        const headers = lines[0].split(',').map(h => h.trim());
+        const csvData: Array<{
+          date: string;
+          timeOfDay: string;
+          totalSales: number;
+          customerCount: number;
+          stationSales: string;
+        }> = [];
+        
+        for (let i = 1; i < lines.length; i++) {
+          const cells = lines[i].split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
+          const row: any = {};
+          
+          headers.forEach((header, index) => {
+            row[header] = cells[index] || '';
+          });
+          
+          // Transform CSV data to match our interface
+          const dataPoint = {
+            date: row['Date'] || row['date'] || new Date().toISOString().slice(0, 10),
+            timeOfDay: row['Time'] || row['time'] || '12:00',
+            totalSales: parseFloat(row['Total Sales ($)'] || row['totalSales'] || row['Total Sales'] || '0'),
+            customerCount: parseInt(row['Customer Count'] || row['customerCount'] || row['Customers'] || '0'),
+            stationSales: row['Station Breakdown'] || row['stationBreakdown'] || row['Stations'] || 'Kitchen: 0, Front of House: 0'
+          };
+          
+          csvData.push(dataPoint);
+        }
+        
+        // Validate data
+        const validData = csvData.filter(point => 
+          point.date && point.totalSales > 0 && point.customerCount > 0
+        );
+        
+        if (validData.length === 0) {
+          alert('No valid data found in CSV. Please check the format.');
+          return;
+        }
+        
+        // Update the data with all imported records
+        handleChange('salesData', validData);
+        
+        // Show success message with import summary
+        const totalRecords = validData.length;
+        const totalSales = validData.reduce((sum, point) => sum + point.totalSales, 0);
+        const totalCustomers = validData.reduce((sum, point) => sum + point.customerCount, 0);
+        
+        setImportSuccess(`✅ Successfully imported ${totalRecords} records! Total Sales: $${totalSales.toFixed(2)}, Total Customers: ${totalCustomers}`);
+        
+        // Auto-hide success message after 8 seconds
+        setTimeout(() => setImportSuccess(null), 8000);
+        
+      } else {
+        alert('Please upload a CSV file');
+      }
+    } catch (error) {
+      console.error('Error parsing CSV:', error);
+      alert('Failed to parse CSV file. Please check the format and try again.');
     }
+  };
+
+  const downloadTemplate = () => {
+    const csvContent = `Date,Time,Total Sales ($),Customer Count,Station Breakdown,Weather Conditions,Special Events,Notes
+2024-07-01,11:00,500.25,20,Kitchen: 350.50, Front of House: 150.00,Sunny,None,Regular lunch service
+2024-07-01,12:00,820.75,35,Kitchen: 550.00, Front of House: 270.75,Sunny,None,Peak lunch hour
+2024-07-01,17:00,1250.00,50,Kitchen: 600.00, Bar: 300.00, FOH: 350.00,Sunny,None,Early dinner rush`;
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'historical-data-template.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   };
 
   const timeSlots = [
@@ -96,6 +176,32 @@ export default function HistoricalDataStep({ data, updateData }: Props) {
           Help our AI understand your business patterns and customer flow
         </p>
       </div>
+
+      {/* Success Banner */}
+      {importSuccess && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-green-800">{importSuccess}</p>
+            </div>
+            <div className="ml-auto pl-3">
+              <button
+                onClick={() => setImportSuccess(null)}
+                className="inline-flex text-green-400 hover:text-green-600"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-8">
         {/* File Upload */}
@@ -132,20 +238,100 @@ export default function HistoricalDataStep({ data, updateData }: Props) {
                 <p className="text-xs text-muted-foreground">
                   {uploadedFile ? `Selected: ${uploadedFile.name}` : 'No file selected'}
                 </p>
+                
+                {/* File Upload Status */}
+                {uploadedFile && localData.salesData.length > 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-3">
+                    <p className="text-sm text-green-800 font-medium">
+                      ✅ {localData.salesData.length} records imported successfully!
+                    </p>
+                    <p className="text-xs text-green-600 mt-1">
+                      File: {uploadedFile.name}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="text-xs text-muted-foreground space-y-1">
                 <p>Supported formats: CSV, Excel (.xlsx, .xls)</p>
                 <p>Expected columns: Date, Time, Sales, Customers, Station Breakdown</p>
               </div>
+              
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-4">
+                  Download our CSV template to get started
+                </p>
+                <button
+                  onClick={downloadTemplate}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Download Template
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Manual Data Entry */}
+        {/* Data Summary */}
+        {localData.salesData.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Data Summary</h2>
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="text-2xl font-bold text-blue-600">{localData.salesData.length}</div>
+                <div className="text-sm text-blue-700">Total Records</div>
+              </div>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="text-2xl font-bold text-green-600">
+                  ${localData.salesData.reduce((sum, point) => sum + point.totalSales, 0).toFixed(2)}
+                </div>
+                <div className="text-sm text-green-700">Total Sales</div>
+              </div>
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <div className="text-2xl font-bold text-purple-600">
+                  {localData.salesData.reduce((sum, point) => sum + point.customerCount, 0)}
+                </div>
+                <div className="text-sm text-purple-700">Total Customers</div>
+              </div>
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <div className="text-2xl font-bold text-orange-600">
+                  ${(localData.salesData.reduce((sum, point) => sum + point.totalSales, 0) / localData.salesData.length).toFixed(2)}
+                </div>
+                <div className="text-sm text-orange-700">Average Sale</div>
+              </div>
+            </div>
+            
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <h3 className="font-medium text-gray-900 mb-2">Import Details</h3>
+              <div className="text-sm text-gray-600 space-y-1">
+                <p><strong>File:</strong> {uploadedFile?.name || 'Manual entry'}</p>
+                <p><strong>Date Range:</strong> {localData.salesData.length > 0 ? 
+                  (() => {
+                    const dates = localData.salesData.map(d => new Date(d.date).getTime());
+                    const minDate = new Date(Math.min(...dates)).toLocaleDateString();
+                    const maxDate = new Date(Math.max(...dates)).toLocaleDateString();
+                    return `${minDate} - ${maxDate}`;
+                  })() : 
+                  'N/A'
+                }</p>
+                <p><strong>Time Range:</strong> {localData.salesData.length > 0 ? 
+                  (() => {
+                    const times = localData.salesData.map(d => parseInt(d.timeOfDay.split(':')[0]));
+                    const minTime = Math.min(...times);
+                    const maxTime = Math.max(...times);
+                    return `${minTime}:00 - ${maxTime}:00`;
+                  })() : 
+                  'N/A'
+                }</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Sales Data */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Manual Data Entry</h2>
+            <h2 className="text-xl font-semibold">Sales Data ({localData.salesData.length} records)</h2>
             <button
               onClick={addSalesDataRow}
               className="px-3 py-1 text-sm border rounded hover:bg-muted transition-colors"
@@ -154,7 +340,10 @@ export default function HistoricalDataStep({ data, updateData }: Props) {
             </button>
           </div>
           <p className="text-sm text-muted-foreground">
-            Or manually enter your sales data below
+            {localData.salesData.length > 0 ? 
+              `Showing ${localData.salesData.length} data points. You can edit any record below or add new ones.` : 
+              'No sales data entered yet. Add your first data point below or import from CSV above.'
+            }
           </p>
 
           {localData.salesData.length === 0 ? (

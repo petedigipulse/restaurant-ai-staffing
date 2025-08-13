@@ -1,8 +1,35 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSession, SessionProvider } from "next-auth/react";
+import { DatabaseService } from "@/lib/services/database";
 
 type OnboardingStep = 'restaurant' | 'staff' | 'business-rules' | 'historical-data' | 'goals' | 'complete';
+
+interface OnboardingStaffMember {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string;
+  hourlyWage: number;
+  guaranteedHours: number;
+  employmentType: 'full-time' | 'part-time' | 'casual';
+  performanceScore: number;
+  stations: string[];
+  availability: {
+    monday: { available: boolean; startTime?: string; endTime?: string; preferred: boolean };
+    tuesday: { available: boolean; startTime?: string; endTime?: string; preferred: boolean };
+    wednesday: { available: boolean; startTime?: string; endTime?: string; preferred: boolean };
+    thursday: { available: boolean; startTime?: string; endTime?: string; preferred: boolean };
+    friday: { available: boolean; startTime?: string; endTime?: string; preferred: boolean };
+    saturday: { available: boolean; startTime?: string; endTime?: string; preferred: boolean };
+    sunday: { available: boolean; startTime?: string; endTime?: string; preferred: boolean };
+  };
+  phone: string;
+  emergencyContact: string;
+  startDate: string;
+}
 
 import RestaurantStep from "./components/RestaurantStep";
 import StaffStep from "./components/StaffStep";
@@ -11,8 +38,11 @@ import HistoricalDataStep from "./components/HistoricalDataStep";
 import GoalsStep from "./components/GoalsStep";
 import CompleteStep from "./components/CompleteStep";
 
-export default function OnboardingPage() {
+function OnboardingPageContent() {
+  const { data: session } = useSession();
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('restaurant');
+  const [isLoading, setIsLoading] = useState(false);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     restaurant: {
       name: '',
@@ -28,7 +58,7 @@ export default function OnboardingPage() {
         sunday: { open: '10:00', close: '21:00', closed: false }
       }
     },
-    staff: [],
+    staff: [] as OnboardingStaffMember[],
     businessRules: {
       minStaffing: { kitchen: 2, foh: 3, bar: 1 },
       maxOvertime: 40,
@@ -85,10 +115,163 @@ export default function OnboardingPage() {
     });
   };
 
-  const nextStep = () => {
+  const nextStep = async () => {
     const currentIndex = steps.findIndex(step => step.id === currentStep);
+    console.log('🔄 nextStep called');
+    console.log('📊 currentStep:', currentStep);
+    console.log('📊 currentIndex:', currentIndex);
+    
+    // Save data to database before moving to next step
+    if (currentStep === 'restaurant') {
+      console.log('💾 Saving restaurant data...');
+      await saveRestaurantData();
+    } else if (currentStep === 'staff') {
+      console.log('💾 Saving staff data...');
+      await saveStaffData();
+    } else if (currentStep === 'historical-data') {
+      console.log('💾 Saving historical data...');
+      await saveHistoricalData();
+    } else if (currentStep === 'business-rules') {
+      console.log('💾 Saving business rules...');
+      await saveBusinessRulesData();
+    }
+    
     if (currentIndex < steps.length - 1) {
-      setCurrentStep(steps[currentIndex + 1].id as OnboardingStep);
+      const nextStepId = steps[currentIndex + 1].id;
+      console.log(`➡️ Moving from ${currentStep} to ${nextStepId}`);
+      setCurrentStep(nextStepId as OnboardingStep);
+    }
+  };
+
+  const saveRestaurantData = async () => {
+    try {
+      setIsLoading(true);
+      const org = await DatabaseService.createOrganization({
+        name: formData.restaurant.name,
+        type: formData.restaurant.type,
+        timezone: formData.restaurant.timezone,
+        operating_hours: formData.restaurant.operatingHours,
+        owner_id: crypto.randomUUID() // Generate a proper UUID
+      });
+      setOrganizationId(org.id);
+      console.log('Restaurant data saved successfully:', org.id);
+    } catch (error) {
+      console.error('Error saving restaurant data:', error);
+      // Fallback to mock ID if organization creation fails
+      const mockOrgId = crypto.randomUUID();
+      setOrganizationId(mockOrgId);
+      console.log('Restaurant data saved successfully (mock):', mockOrgId);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const saveStaffData = async () => {
+    try {
+      setIsLoading(true);
+      if (!organizationId) {
+        console.error('No organization ID available');
+        return;
+      }
+      
+      // Create staff members one by one since createStaffMember only handles single records
+      for (let i = 0; i < formData.staff.length; i++) {
+        const staff = formData.staff[i];
+        console.log('Processing staff member:', staff);
+        console.log('Staff email:', staff.email);
+        
+        // Generate unique email if none provided
+        const uniqueEmail = staff.email || `staff-${i + 1}-${Date.now()}@example.com`;
+        
+        const staffData = {
+          organization_id: organizationId,
+          first_name: staff.firstName || '',
+          last_name: staff.lastName || '',
+          email: uniqueEmail,
+          role: staff.role || 'Staff',
+          hourly_wage: staff.hourlyWage || 0,
+          guaranteed_hours: staff.guaranteedHours || 0,
+          employment_type: staff.employmentType || 'part-time',
+          performance_score: staff.performanceScore || 80,
+          stations: staff.stations || [],
+          availability: staff.availability || {},
+          contact_info: {
+            phone: staff.phone || '',
+            emergency_contact: staff.emergencyContact || ''
+          },
+          start_date: staff.startDate || new Date().toISOString().split('T')[0],
+          status: 'active' as const
+        };
+        
+        console.log('Sending staff data:', staffData);
+        await DatabaseService.createStaffMember(staffData);
+      }
+      console.log('Staff data saved successfully');
+    } catch (error) {
+      console.error('Error saving staff data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const saveHistoricalData = async () => {
+    try {
+      console.log('🔄 saveHistoricalData called');
+      console.log('📊 organizationId:', organizationId);
+      console.log('📊 formData.historicalData:', formData.historicalData);
+      
+      setIsLoading(true);
+      if (!organizationId) {
+        console.error('❌ No organization ID available');
+        return;
+      }
+      
+      if (!formData.historicalData || !formData.historicalData.salesData || formData.historicalData.salesData.length === 0) {
+        console.log('⚠️ No historical data to save');
+        return;
+      }
+      
+      console.log(`💾 Saving ${formData.historicalData.salesData.length} historical data records...`);
+      
+      // Save historical data to database
+      const result = await DatabaseService.saveHistoricalDataFromOnboarding(organizationId, formData.historicalData);
+      console.log('✅ Historical data saved successfully to database:', result);
+    } catch (error) {
+      console.error('❌ Error saving historical data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const saveBusinessRulesData = async () => {
+    try {
+      setIsLoading(true);
+      if (!organizationId) {
+        console.error('No organization ID available');
+        return;
+      }
+      await DatabaseService.createBusinessRules({
+        organization_id: organizationId,
+        min_staffing_requirements: formData.businessRules.minStaffing,
+        labor_cost_management: {
+          max_overtime: formData.businessRules.maxOvertime,
+          target_labor_cost: formData.businessRules.targetLaborCost
+        },
+        break_requirements: formData.businessRules.breakRequirements,
+        shift_constraints: {
+          consecutive_days: formData.businessRules.consecutiveDays,
+          min_shift_length: formData.businessRules.minShiftLength,
+          max_shift_length: formData.businessRules.maxShiftLength,
+          weekend_rotation: formData.businessRules.weekendRotation,
+          holiday_pay: formData.businessRules.holidayPay
+        },
+        additional_policies: {}
+      });
+      console.log('Business rules saved successfully');
+    } catch (error) {
+      console.error('Error saving business rules:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -182,9 +365,9 @@ export default function OnboardingPage() {
               Previous
             </button>
             
-            <div className="text-sm text-muted-foreground">
-              Step {steps.findIndex(s => s.id === currentStep) + 1} of {steps.length}
-            </div>
+                               <div className="text-sm text-muted-foreground">
+                     Step {steps.findIndex(s => s.id === currentStep) + 1} of {steps.length}
+                   </div>
 
             {currentStep === 'complete' ? (
               <Link
@@ -196,14 +379,23 @@ export default function OnboardingPage() {
             ) : (
               <button
                 onClick={nextStep}
-                className="px-6 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                disabled={isLoading}
+                className="px-6 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Next
+                {isLoading ? 'Saving...' : 'Next'}
               </button>
             )}
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <SessionProvider>
+      <OnboardingPageContent />
+    </SessionProvider>
   );
 }

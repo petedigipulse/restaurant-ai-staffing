@@ -1,6 +1,8 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import WeatherForecast from "./components/WeatherForecast";
+import ScheduleHistory from "./components/ScheduleHistory";
+import { useSession } from "next-auth/react";
 
 interface StaffMember {
   id: string;
@@ -9,6 +11,7 @@ interface StaffMember {
   performance: number;
   availability: string[];
   stations: string[];
+  hourlyWage: number;
   conflicts: Array<{
     type: 'day-off' | 'requested-leave' | 'training' | 'injury' | 'other';
     day: string;
@@ -41,6 +44,7 @@ interface ScheduleDay {
 }
 
 export default function SchedulePage() {
+  const { data: session } = useSession();
   const [schedule, setSchedule] = useState<ScheduleDay[]>([
     {
       day: 'Mon',
@@ -169,101 +173,51 @@ export default function SchedulePage() {
     }
   ]);
 
-  const [unassignedStaff, setUnassignedStaff] = useState<StaffMember[]>([
-    {
-      id: '1',
-      name: 'Liam O\'Connor',
-      role: 'Head Chef',
-      performance: 98,
-      availability: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
-      stations: ['Kitchen'],
-      conflicts: []
-    },
-    {
-      id: '2',
-      name: 'Sarah Johnson',
-      role: 'Server',
-      performance: 92,
-      availability: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-      stations: ['Front of House'],
-      conflicts: []
-    },
-    {
-      id: '3',
-      name: 'Ava Thompson',
-      role: 'Bartender',
-      performance: 95,
-      availability: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-      stations: ['Bar'],
-      conflicts: [
-        {
-          type: 'day-off',
-          day: 'Wed',
-          reason: 'Personal day off',
-          startDate: '2024-01-17',
-          endDate: '2024-01-17'
-        }
-      ]
-    },
-    {
-      id: '4',
-      name: 'Marcus Rodriguez',
-      role: 'Line Cook',
-      performance: 88,
-      availability: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
-      stations: ['Kitchen'],
-      conflicts: []
-    },
-    {
-      id: '5',
-      name: 'Emily Chen',
-      role: 'Sous Chef',
-      performance: 93,
-      availability: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
-      stations: ['Kitchen'],
-      conflicts: [
-        {
-          type: 'requested-leave',
-          day: 'Fri',
-          reason: 'Family vacation',
-          startDate: '2024-01-19',
-          endDate: '2024-01-21'
-        }
-      ]
-    },
-    {
-      id: '6',
-      name: 'David Kim',
-      role: 'Server',
-      performance: 90,
-      availability: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-      stations: ['Front of House', 'Host'],
-      conflicts: []
-    },
-    {
-      id: '7',
-      name: 'Jessica Williams',
-      role: 'Bartender',
-      performance: 87,
-      availability: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-      stations: ['Bar'],
-      conflicts: []
-    },
-    {
-      id: '8',
-      name: 'Michael Brown',
-      role: 'Host',
-      performance: 89,
-      availability: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-      stations: ['Host'],
-      conflicts: []
-    }
-  ]);
-
+  const [unassignedStaff, setUnassignedStaff] = useState<StaffMember[]>([]);
+  const [organizationId, setOrganizationId] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
   const [conflictAlert, setConflictAlert] = useState<string | null>(null);
   const [draggedStaff, setDraggedStaff] = useState<StaffMember | null>(null);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [aiProgress, setAiProgress] = useState(0);
+
+  // Fetch staff data from database
+  useEffect(() => {
+    const fetchStaff = async () => {
+      try {
+        // Get organization ID from session or localStorage
+        let orgId = organizationId;
+        if (!orgId) {
+          // Try to get from localStorage
+          const storedOrgId = localStorage.getItem('organizationId');
+          if (storedOrgId && storedOrgId !== 'mock-org-123') {
+            orgId = storedOrgId;
+            setOrganizationId(storedOrgId);
+          } else {
+            // Use a consistent organization ID that matches the working system
+            const consistentOrgId = '21bf260b-8b4c-48c5-b370-836571619abc';
+            setOrganizationId(consistentOrgId);
+            localStorage.setItem('organizationId', consistentOrgId);
+            orgId = consistentOrgId;
+          }
+        }
+
+        if (orgId) {
+          const response = await fetch(`/api/schedule/staff?organizationId=${orgId}`);
+          if (response.ok) {
+            const data = await response.json();
+            setUnassignedStaff(data.staff);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching staff:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStaff();
+  }, [session]); // Remove organizationId from dependencies to avoid circular dependency
 
   const handleDragStart = (e: React.DragEvent, staff: StaffMember) => {
     setDraggedStaff(staff);
@@ -444,6 +398,12 @@ export default function SchedulePage() {
   };
 
   const generateAISchedule = async () => {
+    if (!organizationId) {
+      setConflictAlert('Please complete onboarding to set up your organization first');
+      setTimeout(() => setConflictAlert(null), 8000);
+      return;
+    }
+
     setIsGeneratingAI(true);
     setAiProgress(0);
 
@@ -459,6 +419,132 @@ export default function SchedulePage() {
         return prev + 10;
       });
     }, 200);
+  };
+
+  const generateAIPoweredSchedule = async () => {
+    if (!organizationId) {
+      setConflictAlert('Please complete onboarding to set up your organization first');
+      setTimeout(() => setConflictAlert(null), 8000);
+      return;
+    }
+
+    setIsGeneratingAI(true);
+    setConflictAlert('🤖 AI is analyzing your data and generating an optimized schedule...');
+    
+    try {
+      // Calculate week start date
+      const today = new Date();
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - today.getDay() + 1); // Monday
+      const weekStartString = weekStart.toISOString().split('T')[0];
+
+      console.log('🚀 Calling AI-powered schedule optimization...');
+      
+      const response = await fetch('/api/ai/schedule/optimize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          organizationId,
+          weekStart: weekStartString
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ AI schedule optimization result:', result);
+        
+        // Apply the AI-generated schedule
+        if (result.schedule) {
+          // Transform AI schedule format to our local format
+          const aiSchedule = result.schedule;
+          
+          // Update our local schedule state with AI recommendations
+          setSchedule(prevSchedule => {
+            return prevSchedule.map(day => {
+              const aiDay = aiSchedule[day.day.toLowerCase()];
+              if (aiDay) {
+                return {
+                  ...day,
+                  lunch: {
+                    ...day.lunch,
+                    stations: day.lunch.stations.map(station => {
+                      const aiStation = aiDay.lunch?.stations?.[station.name.toLowerCase()];
+                      if (aiStation?.assignedStaff) {
+                        // Map AI staff assignments to our staff data
+                        const assignedStaff = aiStation.assignedStaff.map((aiStaff: any) => {
+                          const staffMember = unassignedStaff.find(s => s.id === aiStaff.id);
+                          return staffMember || {
+                            id: aiStaff.id,
+                            name: aiStaff.name,
+                            role: aiStaff.role,
+                            performance: 80,
+                            availability: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+                            stations: [station.name],
+                            hourlyWage: 25,
+                            conflicts: []
+                          };
+                        });
+                        
+                        return {
+                          ...station,
+                          assignedStaff,
+                          color: assignedStaff.length >= station.requiredCapacity ? 'green' : 'yellow'
+                        };
+                      }
+                      return station;
+                    })
+                  },
+                  dinner: {
+                    ...day.dinner,
+                    stations: day.dinner.stations.map(station => {
+                      const aiStation = aiDay.dinner?.stations?.[station.name.toLowerCase()];
+                      if (aiStation?.assignedStaff) {
+                        const assignedStaff = aiStation.assignedStaff.map((aiStaff: any) => {
+                          const staffMember = unassignedStaff.find(s => s.id === aiStaff.id);
+                          return staffMember || {
+                            id: aiStaff.id,
+                            name: aiStaff.name,
+                            role: aiStaff.role,
+                            performance: 80,
+                            availability: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+                            stations: [station.name],
+                            hourlyWage: 25,
+                            conflicts: []
+                          };
+                        });
+                        
+                        return {
+                          ...station,
+                          assignedStaff,
+                          color: assignedStaff.length >= station.requiredCapacity ? 'green' : 'yellow'
+                        };
+                      }
+                      return station;
+                    })
+                  }
+                };
+              }
+              return day;
+            });
+          });
+
+          setConflictAlert(`🎉 AI Schedule Generated! ${result.reasoning ? 'Reasoning: ' + result.reasoning.substring(0, 100) + '...' : ''} Expected Efficiency: ${result.metrics?.expectedEfficiency}%, Cost Savings: $${result.metrics?.costSavings}`);
+        } else {
+          setConflictAlert('AI generated schedule but no schedule data was returned. Please try again.');
+        }
+      } else {
+        const error = await response.json();
+        setConflictAlert(`AI schedule generation failed: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error generating AI schedule:', error);
+      setConflictAlert('Failed to generate AI schedule. Please try again.');
+    } finally {
+      setIsGeneratingAI(false);
+      setTimeout(() => setConflictAlert(null), 10000);
+    }
   };
 
   const autoAssignStaff = async () => {
@@ -576,6 +662,102 @@ export default function SchedulePage() {
     }
   };
 
+  const saveSchedule = async () => {
+    if (!organizationId) {
+      setConflictAlert('Please complete onboarding to set up your organization first');
+      setTimeout(() => setConflictAlert(null), 8000);
+      return;
+    }
+
+    try {
+      // Get current week start date (Monday)
+      const today = new Date();
+      const monday = new Date(today);
+      const dayOfWeek = today.getDay();
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      monday.setDate(today.getDate() - daysToMonday);
+      const weekStart = monday.toISOString().split('T')[0];
+
+      // Transform schedule data for API
+      const staffAssignments = schedule.reduce((acc, day) => {
+        acc[day.day] = {
+          lunch: {
+            name: 'Lunch',
+            time: '11:00-15:00',
+            stations: day.lunch.stations.reduce((stationAcc, station) => {
+              stationAcc[station.name] = {
+                requiredCapacity: station.requiredCapacity,
+                assignedStaff: station.assignedStaff.map(staff => ({
+                  id: staff.id,
+                  name: staff.name,
+                  role: staff.role,
+                  hourly_wage: staff.hourlyWage
+                }))
+              };
+              return stationAcc;
+            }, {} as any)
+          },
+          dinner: {
+            name: 'Dinner',
+            time: '17:00-22:00',
+            stations: day.dinner.stations.reduce((stationAcc, station) => {
+              stationAcc[station.name] = {
+                requiredCapacity: station.requiredCapacity,
+                assignedStaff: station.assignedStaff.map(staff => ({
+                  id: staff.id,
+                  name: staff.name,
+                  role: staff.role,
+                  hourly_wage: staff.hourlyWage
+                }))
+              };
+              return stationAcc;
+            }, {} as any)
+          }
+        };
+        return acc;
+      }, {} as any);
+
+      console.log('Sending staffAssignments:', JSON.stringify(staffAssignments, null, 2));
+      
+      const response = await fetch('/api/schedule/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          organizationId,
+          weekStart: weekStart,
+          staffAssignments
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setConflictAlert(`Schedule saved successfully! Total cost: $${result.totalLaborCost.toFixed(2)}, Total hours: ${result.totalHours}`);
+        setTimeout(() => setConflictAlert(null), 8000);
+      } else {
+        const error = await response.json();
+        setConflictAlert(`Failed to save schedule: ${error.error}`);
+        setTimeout(() => setConflictAlert(null), 8000);
+      }
+    } catch (error) {
+      console.error('Error saving schedule:', error);
+      setConflictAlert('Failed to save schedule. Please try again.');
+      setTimeout(() => setConflictAlert(null), 8000);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading schedule data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -584,23 +766,50 @@ export default function SchedulePage() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
               <h1 className="text-2xl font-bold text-gray-900">AI Staffing Optimization</h1>
-              <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">Demo</span>
+              <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">Live</span>
             </div>
             
-            <button 
-              onClick={generateAISchedule}
-              disabled={isGeneratingAI}
-              className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-            >
-              {isGeneratingAI ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Generating... {aiProgress}%</span>
-                </>
-              ) : (
-                <span>Generate AI Schedule</span>
-              )}
-            </button>
+            <div className="flex items-center space-x-3">
+              <button 
+                onClick={saveSchedule}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Save Schedule
+              </button>
+              
+              <button 
+                onClick={generateAISchedule}
+                disabled={isGeneratingAI}
+                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              >
+                {isGeneratingAI ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Generating... {aiProgress}%</span>
+                  </>
+                ) : (
+                  <span>Generate AI Schedule</span>
+                )}
+              </button>
+              
+              <button 
+                onClick={generateAIPoweredSchedule}
+                disabled={isGeneratingAI}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              >
+                {isGeneratingAI ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>AI Processing...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🤖 AI-Powered</span>
+                    <span>Schedule</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
           
           {/* Navigation */}
@@ -624,7 +833,11 @@ export default function SchedulePage() {
       {/* Conflict Alert */}
       {conflictAlert && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">
+          <div className={`border px-4 py-3 rounded-lg ${
+            conflictAlert.includes('successfully') 
+              ? 'bg-green-100 border-green-400 text-green-700'
+              : 'bg-red-100 border-red-400 text-red-700'
+          }`}>
             {conflictAlert}
           </div>
         </div>
@@ -759,54 +972,75 @@ export default function SchedulePage() {
             <div className="bg-white rounded-lg shadow-sm border">
               <div className="p-6 border-b">
                 <h2 className="text-xl font-semibold text-gray-900">Unassigned Staff</h2>
+                <p className="text-sm text-gray-500 mt-1">{unassignedStaff.length} staff members available</p>
               </div>
               
               <div className="p-6">
-                <div className="space-y-4">
-                  {unassignedStaff.map((staff) => (
-                    <div
-                      key={staff.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, staff)}
-                      className={`p-4 border rounded-lg hover:bg-gray-100 cursor-move transition-colors ${
-                        staff.conflicts.length > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50'
-                      }`}
-                    >
-                      <div className="mb-2">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-medium text-gray-900">{staff.name}</h3>
+                {unassignedStaff.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>All staff assigned!</p>
+                    <p className="text-sm">Drag staff from stations to reassign</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {unassignedStaff.map((staff) => (
+                      <div
+                        key={staff.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, staff)}
+                        className={`p-4 border rounded-lg hover:bg-gray-100 cursor-move transition-colors ${
+                          staff.conflicts.length > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50'
+                        }`}
+                      >
+                        <div className="mb-2">
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-medium text-gray-900">{staff.name}</h3>
+                            {staff.conflicts.length > 0 && (
+                              <span className="text-xs bg-red-100 text-red-800 rounded-full px-2 py-1">
+                                Conflicts
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600">{staff.role}</p>
+                        </div>
+                        
+                        <div className="space-y-1 text-xs text-gray-500">
+                          <div>Perf {staff.performance}%</div>
+                          <div>Avail {staff.availability && typeof staff.availability === 'object' 
+                            ? Object.keys(staff.availability).filter(day => 
+                                staff.availability[day as keyof typeof staff.availability] && 
+                                (staff.availability[day as keyof typeof staff.availability] as any)?.available
+                              ).join(', ')
+                            : 'Not specified'}</div>
+                          <div>Stations: {staff.stations.join(', ')}</div>
+                          <div>Wage: ${staff.hourlyWage}/hr</div>
+                          
                           {staff.conflicts.length > 0 && (
-                            <span className="text-xs bg-red-100 text-red-800 rounded-full px-2 py-1">
-                              Conflicts
-                            </span>
+                            <div className="mt-2 pt-2 border-t border-red-200">
+                              <div className="text-red-600 font-medium">Conflicts:</div>
+                              {staff.conflicts.map((conflict, index) => (
+                                <div key={index} className="text-red-500">
+                                  {conflict.type}: {conflict.reason} ({conflict.day})
+                                </div>
+                              ))}
+                            </div>
                           )}
                         </div>
-                        <p className="text-sm text-gray-600">{staff.role}</p>
                       </div>
-                      
-                      <div className="space-y-1 text-xs text-gray-500">
-                        <div>Perf {staff.performance}%</div>
-                        <div>Avail {staff.availability.join(', ')}</div>
-                        <div>Stations: {staff.stations.join(', ')}</div>
-                        
-                        {staff.conflicts.length > 0 && (
-                          <div className="mt-2 pt-2 border-t border-red-200">
-                            <div className="text-red-600 font-medium">Conflicts:</div>
-                            {staff.conflicts.map((conflict, index) => (
-                              <div key={index} className="text-red-500">
-                                {conflict.type}: {conflict.reason} ({conflict.day})
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
+        
+        {/* Schedule History */}
+        {organizationId && (
+          <div className="mt-8">
+            <ScheduleHistory organizationId={organizationId} />
+          </div>
+        )}
       </div>
     </div>
   );

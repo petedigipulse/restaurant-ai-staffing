@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { LoginButton } from "@/components/LoginButton";
 
 export default function Home() {
   return (
@@ -14,12 +15,15 @@ export default function Home() {
               </div>
               <h1 className="text-2xl font-bold text-gray-900">Staffing Optimization AI</h1>
             </div>
-            <Link
-              href="/dashboard"
-              className="px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors shadow-lg hover:shadow-xl"
-            >
-              Go To Dashboard
-            </Link>
+            <div className="flex items-center space-x-4">
+              <LoginButton />
+              <Link
+                href="/dashboard"
+                className="px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors shadow-lg hover:shadow-xl"
+              >
+                Go To Dashboard
+              </Link>
+            </div>
           </div>
         </div>
       </header>

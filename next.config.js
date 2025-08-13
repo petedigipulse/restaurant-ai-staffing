@@ -8,8 +8,7 @@ const nextConfig = {
   },
   // Prevent static generation issues
   experimental: {
-    // Disable static generation for problematic routes
-    staticPageGenerationTimeout: 0,
+    // Add any experimental features here if needed
   },
 };
 

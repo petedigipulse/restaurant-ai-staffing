@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
+type Json = any;
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
@@ -239,6 +241,51 @@ export interface Database {
           config?: Json
           is_active?: boolean
           last_sync?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      ,
+      historical_sales_data: {
+        Row: {
+          id: string
+          organization_id: string
+          date: string
+          time: string
+          total_sales: number
+          customer_count: number
+          station_breakdown: Json
+          weather_conditions: Json | null
+          special_events: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          date: string
+          time: string
+          total_sales: number
+          customer_count: number
+          station_breakdown: Json
+          weather_conditions?: Json | null
+          special_events?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          date?: string
+          time?: string
+          total_sales?: number
+          customer_count?: number
+          station_breakdown?: Json
+          weather_conditions?: Json | null
+          special_events?: string | null
+          notes?: string | null
           created_at?: string
           updated_at?: string
         }

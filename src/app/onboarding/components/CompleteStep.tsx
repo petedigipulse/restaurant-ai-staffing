@@ -19,6 +19,7 @@ interface CompleteData {
     averageDailySales: number;
     peakHours: string[];
     seasonalPatterns: string[];
+    salesData?: any[]; // Added for sales data
   };
   goals: {
     priority: string;
@@ -221,6 +222,53 @@ export default function CompleteStep({ data }: Props) {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Historical Data Summary */}
+          <div className="border rounded-lg">
+            <div className="p-4 border-b bg-muted/50">
+              <h3 className="font-semibold">Historical Data Summary</h3>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <span className="text-sm font-medium text-muted-foreground">Average Daily Sales:</span>
+                  <p className="text-lg font-medium">
+                    {data.historicalData.averageDailySales > 0 
+                      ? `$${data.historicalData.averageDailySales.toLocaleString()}` 
+                      : 'Not provided'
+                    }
+                  </p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-muted-foreground">Peak Hours:</span>
+                  <p className="text-lg font-medium">
+                    {data.historicalData.peakHours.length > 0 
+                      ? data.historicalData.peakHours.join(', ') 
+                      : 'Not specified'
+                    }
+                  </p>
+                </div>
+              </div>
+              
+              {data.historicalData.seasonalPatterns.length > 0 && (
+                <div>
+                  <span className="text-sm font-medium text-muted-foreground">Seasonal Patterns:</span>
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    {data.historicalData.seasonalPatterns.map(pattern => (
+                      <span key={pattern} className="px-2 py-1 bg-muted rounded text-sm">{pattern}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {data.historicalData.salesData && data.historicalData.salesData.length > 0 && (
+                <div>
+                  <span className="text-sm font-medium text-muted-foreground">Data Points:</span>
+                  <p className="text-lg font-medium">{data.historicalData.salesData.length} records imported</p>
+                </div>
+              )}
             </div>
           </div>
 

@@ -1,5 +1,5 @@
 import NextAuth, { type NextAuthOptions } from "next-auth";
-import Google from "next-auth/providers/google";
+import Credentials from "next-auth/providers/credentials";
 import { env } from "@/lib/env";
 
 // Force dynamic rendering to prevent prerendering issues
@@ -8,29 +8,51 @@ export const revalidate = false;
 
 const authOptions: NextAuthOptions = {
   providers: [
-    // Only add Google provider if credentials are available
-    ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET ? [
-      Google({
-        clientId: env.GOOGLE_CLIENT_ID,
-        clientSecret: env.GOOGLE_CLIENT_SECRET,
-      })
-    ] : []),
+    Credentials({
+      name: "credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          return null;
+        }
+
+        // Simple authentication logic - you can enhance this later
+        // For now, let's allow any email/password combination for testing
+        if (credentials.email && credentials.password) {
+          return {
+            id: "1",
+            email: credentials.email,
+            name: credentials.email.split('@')[0], // Use email prefix as name
+            role: "OWNER"
+          };
+        }
+
+        return null;
+      }
+    }),
   ],
   session: { strategy: "jwt" as const },
   callbacks: {
-    async jwt({ token, account }) {
-      if (account) {
-        // Placeholder: attach tenant and role defaults
-        (token as any).tenantId = (token as any).tenantId ?? `tenant_${(token as any).email}`;
-        (token as any).role = (token as any).role ?? "OWNER";
+    async jwt({ token, user }) {
+      if (user) {
+        token.role = user.role;
+        token.email = user.email;
       }
       return token;
     },
     async session({ session, token }) {
-      (session as unknown as Record<string, unknown>).tenantId = (token as unknown as Record<string, unknown>).tenantId;
-      (session as unknown as Record<string, unknown>).role = (token as unknown as Record<string, unknown>).role;
+      if (token) {
+        session.user.id = token.sub;
+        session.user.role = token.role;
+      }
       return session;
     },
+  },
+  pages: {
+    signIn: '/login', // Custom login page
   },
   secret: env.NEXTAUTH_SECRET,
 };

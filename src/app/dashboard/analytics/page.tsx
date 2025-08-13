@@ -1,8 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import PerformanceChart from "./components/PerformanceChart";
-import StaffPerformance, { StaffPerformance as StaffPerformanceType } from "./components/StaffPerformance";
+import StaffPerformance from "./components/StaffPerformance";
+import { AnalyticsService, AnalyticsData, StaffPerformanceData, ChartDataPoint } from "@/lib/services/analytics";
 
 type TimeRange = '7d' | '30d' | '90d' | '1y';
 type MetricType = 'labor-cost' | 'staffing-efficiency' | 'schedule-quality' | 'cost-savings';
@@ -10,118 +11,71 @@ type MetricType = 'labor-cost' | 'staffing-efficiency' | 'schedule-quality' | 'c
 export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState<TimeRange>('30d');
   const [selectedMetric, setSelectedMetric] = useState<MetricType>('labor-cost');
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
+  const [staffPerformance, setStaffPerformance] = useState<StaffPerformanceData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [organizationId, setOrganizationId] = useState<string>('');
+  const [refreshMessage, setRefreshMessage] = useState<string>('');
 
-  // Mock data - in a real app, this would come from your backend
-  const mockData = {
-    laborCost: {
-      current: 28.5,
-      previous: 31.2,
-      target: 25.0,
-      trend: 'down',
-      breakdown: {
-        kitchen: 12.5,
-        foh: 10.2,
-        bar: 5.8
+  // Load analytics data from database
+  useEffect(() => {
+    const loadAnalyticsData = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Get organization ID from localStorage or use consistent ID
+        let storedOrgId = localStorage.getItem('organizationId');
+        if (!storedOrgId || storedOrgId === 'mock-org-123') {
+          // Use a consistent organization ID that matches the working system
+          storedOrgId = '21bf260b-8b4c-48c5-b370-836571619abc';
+          localStorage.setItem('organizationId', storedOrgId);
+        }
+        
+        setOrganizationId(storedOrgId);
+        
+        // Load all analytics data
+        const [analytics, charts, staff] = await Promise.all([
+          AnalyticsService.getAnalyticsData(storedOrgId, timeRange),
+          AnalyticsService.getChartData(storedOrgId, timeRange),
+          AnalyticsService.getStaffPerformanceData(storedOrgId)
+        ]);
+        
+        setAnalyticsData(analytics);
+        setChartData(charts);
+        setStaffPerformance(staff);
+      } catch (error) {
+        console.error('Error loading analytics data:', error);
+      } finally {
+        setIsLoading(false);
       }
-    },
-    staffingEfficiency: {
-      current: 87,
-      previous: 82,
-      target: 90,
-      trend: 'up',
-      metrics: {
-        coverage: 94,
-        utilization: 89,
-        satisfaction: 85
-      }
-    },
-    scheduleQuality: {
-      score: 92,
-      previous: 88,
-      improvements: [
-        'Reduced overtime by 15%',
-        'Better skill distribution',
-        'Improved weekend coverage'
-      ]
-    },
-    costSavings: {
-      total: 2840,
-      monthly: 2840,
-      breakdown: {
-        overtime: 1200,
-        overstaffing: 890,
-        skillMismatch: 750
-      }
-    }
+    };
+
+    loadAnalyticsData();
+  }, [timeRange]);
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading analytics data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Use real data or fallback to defaults
+  const data = analyticsData || {
+    laborCost: { current: 0, previous: 0, target: 0, trend: 'stable', breakdown: { kitchen: 0, foh: 0, bar: 0 } },
+    staffingEfficiency: { current: 0, previous: 0, target: 0, trend: 'stable', metrics: { coverage: 0, utilization: 0, satisfaction: 0 } },
+    scheduleQuality: { score: 0, previous: 0, improvements: [] },
+    costSavings: { total: 0, monthly: 0, breakdown: { overtime: 0, overstaffing: 0, skillMismatch: 0 } }
   };
-
-  // Mock chart data for performance trends
-  const chartData = [
-    { date: '2024-01-01', laborCost: 31.2, efficiency: 82, quality: 88, savings: 0 },
-    { date: '2024-01-08', laborCost: 30.8, efficiency: 83, quality: 89, savings: 450 },
-    { date: '2024-01-15', laborCost: 30.1, efficiency: 85, quality: 90, savings: 890 },
-    { date: '2024-01-22', laborCost: 29.5, efficiency: 86, quality: 91, savings: 1420 },
-    { date: '2024-01-29', laborCost: 28.5, efficiency: 87, quality: 92, savings: 2840 }
-  ];
-
-  // Mock staff performance data
-  const staffPerformance: StaffPerformanceType[] = [
-    {
-      id: 'S101',
-      name: 'Emily Chen',
-      role: 'FOH Manager',
-      performanceScore: 95,
-      attendanceRate: 98,
-      efficiencyRating: 92,
-      costPerHour: 32,
-      totalHours: 120,
-      trend: 'up'
-    },
-    {
-      id: 'S102',
-      name: 'Mai Kanako',
-      role: 'Barista',
-      performanceScore: 92,
-      attendanceRate: 96,
-      efficiencyRating: 89,
-      costPerHour: 26,
-      totalHours: 80,
-      trend: 'up'
-    },
-    {
-      id: 'S103',
-      name: 'Alan James',
-      role: 'Host',
-      performanceScore: 88,
-      attendanceRate: 94,
-      efficiencyRating: 85,
-      costPerHour: 25.5,
-      totalHours: 75,
-      trend: 'stable'
-    },
-    {
-      id: 'S104',
-      name: 'Sarah Wilson',
-      role: 'Sous Chef',
-      performanceScore: 91,
-      attendanceRate: 97,
-      efficiencyRating: 90,
-      costPerHour: 30,
-      totalHours: 110,
-      trend: 'up'
-    },
-    {
-      id: 'S105',
-      name: 'Mike Rodriguez',
-      role: 'Line Cook',
-      performanceScore: 85,
-      attendanceRate: 92,
-      efficiencyRating: 82,
-      costPerHour: 28,
-      totalHours: 95,
-      trend: 'down'
-    }
-  ];
 
   const timeRangeOptions = [
     { value: '7d', label: 'Last 7 Days' },
@@ -152,6 +106,12 @@ export default function AnalyticsPage() {
           <p className="text-muted-foreground">
             Insights into your AI-powered staffing performance
           </p>
+          <div className="flex items-center space-x-2 mt-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <span className="text-xs text-green-600 dark:text-green-400">
+              Live data from database • {staffPerformance.length} staff members • {chartData.length} data points
+            </span>
+          </div>
         </div>
         <div className="flex items-center space-x-4">
           <select
@@ -163,6 +123,59 @@ export default function AnalyticsPage() {
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
+          <button
+            onClick={async () => {
+              try {
+                console.log('Refresh button clicked!');
+                setIsRefreshing(true);
+                const storedOrgId = localStorage.getItem('organizationId');
+                console.log('Organization ID from localStorage:', storedOrgId);
+                
+                if (!storedOrgId) {
+                  console.error('No organization ID found');
+                  setRefreshMessage('No organization ID found. Please complete onboarding first.');
+                  setTimeout(() => setRefreshMessage(''), 3000);
+                  return;
+                }
+                
+                console.log('Starting data refresh for organization:', storedOrgId);
+                
+                // Reload all analytics data
+                const [analytics, charts, staff] = await Promise.all([
+                  AnalyticsService.getAnalyticsData(storedOrgId, timeRange),
+                  AnalyticsService.getChartData(storedOrgId, timeRange),
+                  AnalyticsService.getStaffPerformanceData(storedOrgId)
+                ]);
+                
+                console.log('Refresh results:', { analytics, charts, staff });
+                
+                setAnalyticsData(analytics);
+                setChartData(charts);
+                setStaffPerformance(staff);
+                
+                // Show success message
+                setRefreshMessage(`Data refreshed successfully! Loaded ${staff.length} staff members and ${charts.length} data points.`);
+                setTimeout(() => setRefreshMessage(''), 3000); // Clear after 3 seconds
+              } catch (error) {
+                console.error('Error refreshing analytics data:', error);
+                setRefreshMessage('Error refreshing data. Please try again.');
+                setTimeout(() => setRefreshMessage(''), 3000);
+              } finally {
+                setIsRefreshing(false);
+              }
+            }}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isRefreshing}
+          >
+            {isRefreshing ? (
+              <div className="flex items-center space-x-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>Refreshing...</span>
+              </div>
+            ) : (
+              'Refresh Data'
+            )}
+          </button>
           <Link
             href="/dashboard/schedule"
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
@@ -172,6 +185,22 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
+      {/* Refresh Message */}
+      {refreshMessage && (
+        <div className={`p-4 rounded-lg ${
+          refreshMessage.includes('Error') 
+            ? 'bg-red-50 border border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-800 dark:text-red-300' 
+            : 'bg-green-50 border border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-800 dark:text-green-300'
+        }`}>
+          <div className="flex items-center space-x-2">
+            <div className={`w-2 h-2 rounded-full ${
+              refreshMessage.includes('Error') ? 'bg-red-500' : 'bg-green-500'
+            }`}></div>
+            <span className="text-sm font-medium">{refreshMessage}</span>
+          </div>
+        </div>
+      )}
+
       {/* Key Metrics Overview */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <div className="p-6 border rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20">
@@ -179,15 +208,15 @@ export default function AnalyticsPage() {
             <div>
               <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Labor Cost</p>
               <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                {mockData.laborCost.current}%
+                {data.laborCost.current}%
               </p>
             </div>
-            <div className={`text-2xl ${getTrendColor(mockData.laborCost.trend, 'labor-cost')}`}>
-              {getTrendIcon(mockData.laborCost.trend)}
+            <div className={`text-2xl ${getTrendColor(data.laborCost.trend, 'labor-cost')}`}>
+              {getTrendIcon(data.laborCost.trend)}
             </div>
           </div>
           <p className="text-sm text-blue-600 dark:text-blue-400 mt-2">
-            Target: {mockData.laborCost.target}%
+            Target: {data.laborCost.target}%
           </p>
         </div>
 
@@ -196,15 +225,15 @@ export default function AnalyticsPage() {
             <div>
               <p className="text-sm font-medium text-green-600 dark:text-green-400">Efficiency Score</p>
               <p className="text-2xl font-bold text-green-900 dark:text-green-100">
-                {mockData.staffingEfficiency.current}%
+                {data.staffingEfficiency.current}%
               </p>
             </div>
-            <div className={`text-2xl ${getTrendColor(mockData.staffingEfficiency.trend, 'efficiency')}`}>
-              {getTrendIcon(mockData.staffingEfficiency.trend)}
+            <div className={`text-2xl ${getTrendColor(data.staffingEfficiency.trend, 'efficiency')}`}>
+              {getTrendIcon(data.staffingEfficiency.trend)}
             </div>
           </div>
           <p className="text-sm text-green-600 dark:text-green-400 mt-2">
-            Target: {mockData.staffingEfficiency.target}%
+            Target: {data.staffingEfficiency.target}%
           </p>
         </div>
 
@@ -213,7 +242,7 @@ export default function AnalyticsPage() {
             <div>
               <p className="text-sm font-medium text-purple-600 dark:text-purple-400">Schedule Quality</p>
               <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">
-                {mockData.scheduleQuality.score}/100
+                {data.scheduleQuality.score}/100
               </p>
             </div>
             <div className="text-2xl text-purple-600">
@@ -221,7 +250,7 @@ export default function AnalyticsPage() {
             </div>
           </div>
           <p className="text-sm text-purple-600 dark:text-purple-400 mt-2">
-            +{mockData.scheduleQuality.score - mockData.scheduleQuality.previous} from last period
+            +{data.scheduleQuality.score - data.scheduleQuality.previous} from last period
           </p>
         </div>
 
@@ -230,7 +259,7 @@ export default function AnalyticsPage() {
             <div>
               <p className="text-sm font-medium text-orange-600 dark:text-orange-400">Cost Savings</p>
               <p className="text-2xl font-bold text-orange-900 dark:text-orange-100">
-                ${mockData.costSavings.total.toLocaleString()}
+                ${data.costSavings.total.toLocaleString()}
               </p>
             </div>
             <div className="text-2xl text-orange-600">
@@ -255,10 +284,10 @@ export default function AnalyticsPage() {
                 <div className="w-24 bg-gray-200 rounded-full h-2">
                   <div 
                     className="bg-blue-600 h-2 rounded-full" 
-                    style={{ width: `${(mockData.laborCost.breakdown.kitchen / mockData.laborCost.current) * 100}%` }}
+                    style={{ width: `${(data.laborCost.breakdown.kitchen / Math.max(data.laborCost.current, 1)) * 100}%` }}
                   ></div>
                 </div>
-                <span className="text-sm font-medium">{mockData.laborCost.breakdown.kitchen}%</span>
+                <span className="text-sm font-medium">{data.laborCost.breakdown.kitchen.toFixed(1)}%</span>
               </div>
             </div>
             
@@ -268,10 +297,10 @@ export default function AnalyticsPage() {
                 <div className="w-24 bg-gray-200 rounded-full h-2">
                   <div 
                     className="bg-green-600 h-2 rounded-full" 
-                    style={{ width: `${(mockData.laborCost.breakdown.foh / mockData.laborCost.current) * 100}%` }}
+                    style={{ width: `${(data.laborCost.breakdown.foh / Math.max(data.laborCost.current, 1)) * 100}%` }}
                   ></div>
                 </div>
-                <span className="text-sm font-medium">{mockData.laborCost.breakdown.foh}%</span>
+                <span className="text-sm font-medium">{data.laborCost.breakdown.foh.toFixed(1)}%</span>
               </div>
             </div>
             
@@ -281,10 +310,10 @@ export default function AnalyticsPage() {
                 <div className="w-24 bg-gray-200 rounded-full h-2">
                   <div 
                     className="bg-purple-600 h-2 rounded-full" 
-                    style={{ width: `${(mockData.laborCost.breakdown.bar / mockData.laborCost.current) * 100}%` }}
+                    style={{ width: `${(data.laborCost.breakdown.bar / Math.max(data.laborCost.current, 1)) * 100}%` }}
                   ></div>
                 </div>
-                <span className="text-sm font-medium">{mockData.laborCost.breakdown.bar}%</span>
+                <span className="text-sm font-medium">{data.laborCost.breakdown.bar.toFixed(1)}%</span>
               </div>
             </div>
           </div>
@@ -292,8 +321,8 @@ export default function AnalyticsPage() {
           <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
             <h3 className="font-medium text-blue-800 dark:text-blue-200 mb-2">AI Insights</h3>
             <p className="text-sm text-blue-700 dark:text-blue-300">
-              Your labor costs are trending downward! The AI has optimized scheduling to reduce 
-              overtime and improve staff utilization, saving you ${(mockData.laborCost.previous - mockData.laborCost.current).toFixed(1)}% 
+              Your labor costs are trending {data.laborCost.trend === 'down' ? 'downward' : 'upward'}! The AI has optimized scheduling to reduce 
+              overtime and improve staff utilization, saving you ${(data.laborCost.previous - data.laborCost.current).toFixed(1)}% 
               compared to last period.
             </p>
           </div>
@@ -306,12 +335,12 @@ export default function AnalyticsPage() {
             <div>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium">Coverage Rate</span>
-                <span className="text-sm font-medium">{mockData.staffingEfficiency.metrics.coverage}%</span>
+                <span className="text-sm font-medium">{data.staffingEfficiency.metrics.coverage}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div 
                   className="bg-green-600 h-2 rounded-full" 
-                  style={{ width: `${mockData.staffingEfficiency.metrics.coverage}%` }}
+                  style={{ width: `${data.staffingEfficiency.metrics.coverage}%` }}
                 ></div>
               </div>
             </div>
@@ -319,12 +348,12 @@ export default function AnalyticsPage() {
             <div>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium">Staff Utilization</span>
-                <span className="text-sm font-medium">{mockData.staffingEfficiency.metrics.utilization}%</span>
+                <span className="text-sm font-medium">{data.staffingEfficiency.metrics.utilization}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div 
                   className="bg-blue-600 h-2 rounded-full" 
-                  style={{ width: `${mockData.staffingEfficiency.metrics.utilization}%` }}
+                  style={{ width: `${data.staffingEfficiency.metrics.utilization}%` }}
                 ></div>
               </div>
             </div>
@@ -332,12 +361,12 @@ export default function AnalyticsPage() {
             <div>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium">Staff Satisfaction</span>
-                <span className="text-sm font-medium">{mockData.staffingEfficiency.metrics.satisfaction}%</span>
+                <span className="text-sm font-medium">{data.staffingEfficiency.metrics.satisfaction}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div 
                   className="bg-purple-600 h-2 rounded-full" 
-                  style={{ width: `${mockData.staffingEfficiency.metrics.satisfaction}%` }}
+                  style={{ width: `${data.staffingEfficiency.metrics.satisfaction}%` }}
                 ></div>
               </div>
             </div>
@@ -346,7 +375,7 @@ export default function AnalyticsPage() {
           <div className="mt-6 p-4 bg-green-50 dark:bg-green-950/20 rounded-lg">
             <h3 className="font-medium text-green-800 dark:text-green-200 mb-2">Performance Highlights</h3>
             <p className="text-sm text-green-700 dark:text-green-300">
-              Your efficiency score improved by {mockData.staffingEfficiency.current - mockData.staffingEfficiency.previous} points! 
+              Your efficiency score {data.staffingEfficiency.trend === 'up' ? 'improved' : 'decreased'} by {Math.abs(data.staffingEfficiency.current - data.staffingEfficiency.previous)} points! 
               The AI has better balanced workload distribution and staff preferences.
             </p>
           </div>
@@ -361,7 +390,7 @@ export default function AnalyticsPage() {
             <div className="text-3xl mb-2">⏰</div>
             <h3 className="font-medium mb-2">Overtime Reduction</h3>
             <p className="text-2xl font-bold text-green-600">
-              ${mockData.costSavings.breakdown.overtime.toLocaleString()}
+              ${data.costSavings.breakdown.overtime.toLocaleString()}
             </p>
             <p className="text-sm text-muted-foreground">
               Saved through better shift planning
@@ -372,7 +401,7 @@ export default function AnalyticsPage() {
             <div className="text-3xl mb-2">👥</div>
             <h3 className="font-medium mb-2">Overstaffing Prevention</h3>
             <p className="text-2xl font-bold text-blue-600">
-              ${mockData.costSavings.breakdown.overstaffing.toLocaleString()}
+              ${data.costSavings.breakdown.overstaffing.toLocaleString()}
             </p>
             <p className="text-sm text-muted-foreground">
               Avoided unnecessary labor costs
@@ -383,7 +412,7 @@ export default function AnalyticsPage() {
             <div className="text-3xl mb-2">🎯</div>
             <h3 className="font-medium mb-2">Skill Optimization</h3>
             <p className="text-2xl font-bold text-purple-600">
-              ${mockData.costSavings.breakdown.skillMismatch.toLocaleString()}
+              ${data.costSavings.breakdown.skillMismatch.toLocaleString()}
             </p>
             <p className="text-sm text-muted-foreground">
               Better role-to-skill matching
@@ -396,22 +425,22 @@ export default function AnalyticsPage() {
       <div className="border rounded-lg p-6">
         <h2 className="text-xl font-semibold mb-4">Recent Schedule Improvements</h2>
         <div className="grid gap-4 md:grid-cols-2">
-          {mockData.scheduleQuality.improvements.map((improvement, index) => (
-            <div key={index} className="flex items-start space-x-3 p-4 border rounded-lg">
-              <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-              <p className="text-sm">{improvement}</p>
-            </div>
-          ))}
+                  {data.scheduleQuality.improvements.map((improvement, index) => (
+          <div key={index} className="flex items-start space-x-3 p-4 border rounded-lg">
+            <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+            <p className="text-sm">{improvement}</p>
+          </div>
+        ))}
         </div>
         
         <div className="mt-6 p-4 bg-purple-50 dark:bg-purple-950/20 rounded-lg">
           <h3 className="font-medium text-purple-800 dark:text-purple-200 mb-2">AI Learning Progress</h3>
-          <p className="text-sm text-purple-700 dark:text-purple-300">
-            Your AI system has analyzed {timeRange === '7d' ? '7' : timeRange === '30d' ? '30' : timeRange === '90d' ? '90' : '365'} 
-            days of scheduling data and continues to improve. The quality score has increased by 
-            {mockData.scheduleQuality.score - mockData.scheduleQuality.previous} points through 
-            pattern recognition and optimization.
-          </p>
+                      <p className="text-sm text-purple-700 dark:text-purple-300">
+              Your AI system has analyzed {timeRange === '7d' ? '7' : timeRange === '30d' ? '30' : timeRange === '90d' ? '90' : '365'} 
+              days of scheduling data and continues to improve. The quality score has {data.scheduleQuality.score >= data.scheduleQuality.previous ? 'increased' : 'decreased'} by 
+              {Math.abs(data.scheduleQuality.score - data.scheduleQuality.previous)} points through 
+              pattern recognition and optimization.
+            </p>
         </div>
       </div>
 

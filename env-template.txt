@@ -1,17 +1,23 @@
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+# Environment Variables Template
+# Copy this file to .env.local and fill in your actual values
 
 # NextAuth Configuration
 NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your_nextauth_secret
+NEXTAUTH_SECRET=your-secret-key-here
 
-# Google OAuth (Optional)
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 
-# Other Services (Optional)
-PUSHER_APP_ID=your_pusher_app_id
-PUSHER_KEY=your_pusher_key
-PUSHER_SECRET=your_pusher_secret
-PUSHER_CLUSTER=your_pusher_cluster
+# OpenAI Configuration
+OPENAI_API_KEY=your-openai-api-key-here
+
+# Optional: Pusher Configuration (for real-time features)
+NEXT_PUBLIC_PUSHER_APP_KEY=your-pusher-app-key
+PUSHER_APP_ID=your-pusher-app-id
+PUSHER_APP_SECRET=your-pusher-app-secret
+PUSHER_APP_CLUSTER=your-pusher-app-cluster
+
+# Optional: Redis Configuration (for queue management)
+REDIS_URL=your-redis-url
+REDIS_PASSWORD=your-redis-password

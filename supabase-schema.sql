@@ -95,16 +95,38 @@ CREATE INDEX idx_business_rules_organization_id ON business_rules(organization_i
 CREATE INDEX idx_schedules_organization_id ON schedules(organization_id);
 CREATE INDEX idx_schedules_week_start_date ON schedules(week_start_date);
 CREATE INDEX idx_performance_metrics_organization_id ON performance_metrics(organization_id);
-CREATE INDEX idx_performance_metrics_staff_member_id ON performance_metrics(staff_member_id);
-CREATE INDEX idx_performance_metrics_date ON performance_metrics(date);
+CREATE INDEX idx_performance_metrics_staff_member_id ON performance_metrics(performance_metrics.staff_member_id);
+CREATE INDEX idx_performance_metrics_date ON performance_metrics(performance_metrics.date);
 CREATE INDEX idx_integrations_organization_id ON integrations(organization_id);
-CREATE INDEX idx_integrations_type ON integrations(type);
+CREATE INDEX idx_integrations_type ON integrations(integrations.type);
+
+-- Historical Sales Data Table
+CREATE TABLE historical_sales_data (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  time TIME NOT NULL,
+  total_sales DECIMAL(10,2) NOT NULL,
+  customer_count INTEGER NOT NULL,
+  station_breakdown JSONB NOT NULL DEFAULT '{}',
+  weather_conditions JSONB,
+  special_events TEXT,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes for historical data
+CREATE INDEX idx_historical_sales_organization_id ON historical_sales_data(organization_id);
+CREATE INDEX idx_historical_sales_date ON historical_sales_data(date);
+CREATE INDEX idx_historical_sales_date_time ON historical_sales_data(date, time);
 
 -- Create unique constraints
 CREATE UNIQUE INDEX idx_organizations_owner_id ON organizations(owner_id);
 CREATE UNIQUE INDEX idx_staff_members_organization_email ON staff_members(organization_id, email);
 CREATE UNIQUE INDEX idx_business_rules_organization_unique ON business_rules(organization_id);
-CREATE UNIQUE INDEX idx_schedules_organization_week ON schedules(organization_id, week_start_date);
+CREATE INDEX idx_schedules_organization_week ON schedules(organization_id, week_start_date);
+CREATE UNIQUE INDEX idx_historical_sales_org_date_time ON historical_sales_data(organization_id, date, time);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -121,6 +143,7 @@ CREATE TRIGGER update_staff_members_updated_at BEFORE UPDATE ON staff_members FO
 CREATE TRIGGER update_business_rules_updated_at BEFORE UPDATE ON business_rules FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_schedules_updated_at BEFORE UPDATE ON schedules FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_integrations_updated_at BEFORE UPDATE ON integrations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_historical_sales_updated_at BEFORE UPDATE ON historical_sales_data FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
@@ -129,6 +152,7 @@ ALTER TABLE business_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE schedules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE performance_metrics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE integrations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE historical_sales_data ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies
 -- Organizations: Users can only access their own organization
@@ -173,6 +197,36 @@ CREATE POLICY "Users can delete staff in own organization" ON staff_members
 -- Business rules: Users can only access rules in their organization
 CREATE POLICY "Users can view business rules in own organization" ON business_rules
     FOR SELECT USING (
+        organization_id IN (
+            SELECT id FROM organizations WHERE owner_id::text = auth.uid()::text
+        )
+    );
+
+-- Historical sales data: Users can only access data in their organization
+CREATE POLICY "Users can view historical sales in own organization" ON historical_sales_data
+    FOR SELECT USING (
+        organization_id IN (
+            SELECT id FROM organizations WHERE owner_id::text = auth.uid()::text
+        )
+    );
+
+-- Allow insertion if organization exists (for onboarding process)
+CREATE POLICY "Users can insert historical sales in own organization" ON historical_sales_data
+    FOR INSERT WITH CHECK (
+        organization_id IN (
+            SELECT id FROM organizations
+        )
+    );
+
+CREATE POLICY "Users can update historical sales in own organization" ON historical_sales_data
+    FOR UPDATE USING (
+        organization_id IN (
+            SELECT id FROM organizations WHERE owner_id::text = auth.uid()::text
+        )
+    );
+
+CREATE POLICY "Users can delete historical sales in own organization" ON historical_sales_data
+    FOR DELETE USING (
         organization_id IN (
             SELECT id FROM organizations WHERE owner_id::text = auth.uid()::text
         )

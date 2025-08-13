@@ -5,12 +5,16 @@ interface StaffMember {
   id: string;
   firstName: string;
   lastName: string;
+  email?: string;
   role: string;
   hourlyWage: number;
   guaranteedHours: number;
   stations: string[];
   performanceScore?: number;
   employmentType: 'full-time' | 'part-time' | 'casual';
+  phone?: string;
+  emergencyContact?: string;
+  startDate?: string;
   availability: {
     monday: { available: boolean; startTime?: string; endTime?: string; preferred: boolean };
     tuesday: { available: boolean; startTime?: string; endTime?: string; preferred: boolean };
@@ -30,6 +34,7 @@ interface Props {
 export default function StaffStep({ data, updateData }: Props) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [showCSVImport, setShowCSVImport] = useState(false);
 
   // Ensure data.staff is always an array
   const staff = Array.isArray(data) ? data : [];
@@ -86,11 +91,15 @@ export default function StaffStep({ data, updateData }: Props) {
       id: `S${String((staff.length) + 101).padStart(3, '0')}`,
       firstName: '',
       lastName: '',
+      email: '',
       role: '',
       hourlyWage: 0,
       guaranteedHours: 0,
       stations: [],
       employmentType: 'part-time',
+      phone: '',
+      emergencyContact: '',
+      startDate: new Date().toISOString().split('T')[0],
       availability: {
         monday: { available: false, startTime: '09:00', endTime: '17:00', preferred: false },
         tuesday: { available: false, startTime: '09:00', endTime: '17:00', preferred: false },
@@ -142,6 +151,93 @@ export default function StaffStep({ data, updateData }: Props) {
     updateStaffMember(staffId, { availability: updatedAvailability });
   };
 
+  const handleCSVImport = async (file: File) => {
+    try {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter(Boolean);
+      
+      if (lines.length < 2) {
+        alert('CSV must have at least a header row and one data row');
+        return;
+      }
+      
+      const headers = lines[0].split(',').map(h => h.trim());
+      const csvData: StaffMember[] = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+        const cells = lines[i].split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
+        const row: any = {};
+        
+        headers.forEach((header, index) => {
+          row[header] = cells[index] || '';
+        });
+        
+        // Transform CSV data to match StaffMember interface
+        const staffMember: StaffMember = {
+          id: `S${String((staff.length + csvData.length + 101)).padStart(3, '0')}`,
+          firstName: row['First Name'] || row['firstName'] || '',
+          lastName: row['Last Name'] || row['lastName'] || '',
+          email: row['Email'] || row['email'] || '',
+          role: row['Role'] || row['role'] || '',
+          hourlyWage: parseFloat(row['Hourly Wage'] || row['hourlyWage'] || '0'),
+          guaranteedHours: parseInt(row['Guaranteed Hours'] || row['guaranteedHours'] || '0'),
+          employmentType: (row['Employment Type'] || row['employmentType'] || 'part-time').toLowerCase() as any,
+          performanceScore: parseInt(row['Performance Score'] || row['performanceScore'] || '80'),
+          stations: (row['Stations'] || row['stations'] || '').split(',').map(s => s.trim()).filter(Boolean),
+          availability: {
+            monday: { available: true, startTime: '09:00', endTime: '17:00', preferred: false },
+            tuesday: { available: true, startTime: '09:00', endTime: '17:00', preferred: false },
+            wednesday: { available: true, startTime: '09:00', endTime: '17:00', preferred: false },
+            thursday: { available: true, startTime: '09:00', endTime: '17:00', preferred: false },
+            friday: { available: true, startTime: '09:00', endTime: '17:00', preferred: false },
+            saturday: { available: false, startTime: '09:00', endTime: '17:00', preferred: false },
+            sunday: { available: false, startTime: '09:00', endTime: '17:00', preferred: false }
+          },
+          phone: row['Phone'] || row['phone'] || '',
+          emergencyContact: row['Emergency Contact'] || row['emergencyContact'] || '',
+          startDate: row['Start Date'] || row['startDate'] || new Date().toISOString().split('T')[0]
+        };
+        
+        csvData.push(staffMember);
+      }
+      
+      // Validate required fields
+      const invalidRows = csvData.filter(member => 
+        !member.firstName || !member.lastName || !member.role
+      );
+      
+      if (invalidRows.length > 0) {
+        alert(`Invalid data in ${invalidRows.length} rows. First Name, Last Name, and Role are required.`);
+        return;
+      }
+      
+      // Add imported staff to existing staff
+      const updatedStaff = [...staff, ...csvData];
+      updateData(updatedStaff);
+      
+      alert(`Successfully imported ${csvData.length} staff members!`);
+      setShowCSVImport(false);
+      
+    } catch (error) {
+      console.error('Error importing CSV:', error);
+      alert('Failed to import CSV. Please check the file format and try again.');
+    }
+  };
+
+  const downloadTemplate = () => {
+    const csvContent = `First Name,Last Name,Email,Role,Hourly Wage,Guaranteed Hours,Employment Type,Performance Score,Stations,Phone,Emergency Contact,Start Date
+Emily,Chen,emily.chen@restaurant.com,FOH Manager,32.00,30,full-time,95,"Front of House, Management","+1 (555) 123-4567","John Chen","2024-01-15"
+Mai,Kanako,mai.kanako@restaurant.com,Barista,26.00,15,part-time,98,"Barista, Till","+1 (555) 987-6543","Sarah Johnson","2024-02-01"`;
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'staff-template.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-8">
       <div className="text-center space-y-2">
@@ -155,12 +251,20 @@ export default function StaffStep({ data, updateData }: Props) {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Staff Members ({staff.length})</h2>
-          <button
-            onClick={addStaffMember}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-          >
-            Add Staff Member
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setShowCSVImport(true)}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              Import CSV
+            </button>
+            <button
+              onClick={addStaffMember}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Add Staff Member
+            </button>
+          </div>
         </div>
 
         {staff.length === 0 ? (
@@ -202,6 +306,17 @@ export default function StaffStep({ data, updateData }: Props) {
                   </div>
 
                   <div>
+                    <label className="block text-sm font-medium mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={member.email || ''}
+                      onChange={(e) => updateStaffMember(member.id, { email: e.target.value })}
+                      className="w-full p-2 border rounded focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      placeholder="email@example.com"
+                    />
+                  </div>
+
+                  <div>
                     <label className="block text-sm font-medium mb-1">Role</label>
                     <select
                       value={member.role}
@@ -214,7 +329,10 @@ export default function StaffStep({ data, updateData }: Props) {
                       ))}
                     </select>
                   </div>
+                </div>
 
+                {/* Additional Info */}
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">Employment Type</label>
                     <select
@@ -226,6 +344,38 @@ export default function StaffStep({ data, updateData }: Props) {
                       <option value="part-time">Part-time</option>
                       <option value="casual">Casual</option>
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Phone</label>
+                    <input
+                      type="tel"
+                      value={member.phone || ''}
+                      onChange={(e) => updateStaffMember(member.id, { phone: e.target.value })}
+                      className="w-full p-2 border rounded focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      placeholder="+1 (555) 123-4567"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Emergency Contact</label>
+                    <input
+                      type="text"
+                      value={member.emergencyContact || ''}
+                      onChange={(e) => updateStaffMember(member.id, { emergencyContact: e.target.value })}
+                      className="w-full p-2 border rounded focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      placeholder="Emergency contact name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={member.startDate || ''}
+                      onChange={(e) => updateStaffMember(member.id, { startDate: e.target.value })}
+                      className="w-full p-2 border rounded focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    />
                   </div>
                 </div>
 
@@ -368,12 +518,16 @@ export default function StaffStep({ data, updateData }: Props) {
                   id: 'S101',
                   firstName: 'Emily',
                   lastName: '',
+                  email: 'emily@restaurant.com',
                   role: 'FOH Manager',
                   hourlyWage: 32,
                   guaranteedHours: 30,
                   stations: ['Front of House', 'Management'],
                   performanceScore: 92,
                   employmentType: 'full-time',
+                  phone: '+1 (555) 123-4567',
+                  emergencyContact: 'John Smith',
+                  startDate: new Date().toISOString().split('T')[0],
                   availability: {
                     monday: { available: true, startTime: '09:00', endTime: '17:00', preferred: false },
                     tuesday: { available: true, startTime: '09:00', endTime: '17:00', preferred: false },
@@ -388,12 +542,16 @@ export default function StaffStep({ data, updateData }: Props) {
                   id: 'S102',
                   firstName: 'Mai',
                   lastName: '',
+                  email: 'mai@restaurant.com',
                   role: 'Barista',
                   hourlyWage: 26,
                   guaranteedHours: 15,
                   stations: ['Barista', 'Till'],
                   performanceScore: 98,
                   employmentType: 'part-time',
+                  phone: '+1 (555) 987-6543',
+                  emergencyContact: 'Sarah Johnson',
+                  startDate: new Date().toISOString().split('T')[0],
                   availability: {
                     monday: { available: false, startTime: '09:00', endTime: '17:00', preferred: false },
                     tuesday: { available: false, startTime: '09:00', endTime: '17:00', preferred: false },
@@ -413,6 +571,82 @@ export default function StaffStep({ data, updateData }: Props) {
           </button>
         </div>
       </div>
+
+      {/* CSV Import Modal */}
+      {showCSVImport && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-xl font-semibold">Import Staff from CSV</h2>
+              <button
+                onClick={() => setShowCSVImport(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {/* Download Template */}
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-4">
+                  Download our CSV template to get started
+                </p>
+                <button
+                  onClick={downloadTemplate}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Download Template
+                </button>
+              </div>
+
+              {/* File Upload */}
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                <div className="text-6xl mb-4">📁</div>
+                <p className="text-lg font-medium text-gray-900 mb-2">
+                  Upload your CSV file
+                </p>
+                <p className="text-sm text-gray-500 mb-4">
+                  Drag and drop your CSV file here or click to browse
+                </p>
+                
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      handleCSVImport(file);
+                    }
+                  }}
+                  className="hidden"
+                  id="csv-upload"
+                />
+                <label
+                  htmlFor="csv-upload"
+                  className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors cursor-pointer"
+                >
+                  Choose File
+                </label>
+              </div>
+
+              {/* CSV Format Instructions */}
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <h4 className="font-medium text-gray-900 mb-2">CSV Format Requirements:</h4>
+                <div className="text-sm text-gray-600 space-y-1">
+                  <p><strong>Required fields:</strong> First Name, Last Name, Role</p>
+                  <p><strong>Optional fields:</strong> Email, Hourly Wage, Guaranteed Hours, Employment Type, Performance Score, Stations, Phone, Emergency Contact, Start Date</p>
+                  <p><strong>Employment Type:</strong> full-time, part-time, or casual</p>
+                  <p><strong>Stations:</strong> Comma-separated list (e.g., "Kitchen, Front of House")</p>
+                  <p><strong>Date format:</strong> YYYY-MM-DD</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

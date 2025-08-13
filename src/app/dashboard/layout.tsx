@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { AuthGuard } from "@/components/AuthGuard";
 
 function ErrorBoundary({ children }: { children: React.ReactNode }) {
   const [hasError, setHasError] = useState(false);
@@ -66,69 +67,101 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ErrorBoundary>
-      <div className="min-h-dvh bg-background text-foreground">
-        {/* Navigation Header */}
-        <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="mx-auto max-w-7xl px-6">
-            <div className="flex h-16 items-center justify-between">
-              <div className="flex items-center space-x-6">
-                <Link href="/dashboard" className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                    <span className="text-primary-foreground font-bold text-sm">AI</span>
-                  </div>
-                  <span className="font-semibold text-lg">Restaurant Staffing</span>
-                </Link>
+    <AuthGuard>
+      <ErrorBoundary>
+        <div className="min-h-dvh bg-background text-foreground">
+          {/* Navigation Header */}
+          <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="mx-auto max-w-7xl px-6">
+              <div className="flex h-16 items-center justify-between">
+                <div className="flex items-center space-x-6">
+                  <Link href="/dashboard" className="flex items-center space-x-2">
+                    <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                      <span className="text-primary-foreground font-bold text-sm">AI</span>
+                    </div>
+                    <span className="font-semibold text-lg">Restaurant Staffing</span>
+                  </Link>
+                  
+                  <nav className="hidden md:flex items-center space-x-6">
+                    <Link 
+                      href="/dashboard" 
+                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Dashboard
+                    </Link>
+                    <Link 
+                      href="/dashboard/schedule" 
+                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Schedule
+                    </Link>
+                    <Link 
+                      href="/dashboard/staff" 
+                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Staff
+                    </Link>
+                    <Link 
+                      href="/dashboard/analytics" 
+                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Analytics
+                    </Link>
+                    <Link
+                      href="/onboarding"
+                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Onboarding
+                    </Link>
+                    <Link
+                      href="/dashboard/ai-test"
+                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      AI Test
+                    </Link>
+                    <Link
+                      href="/dashboard" 
+                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Settings
+                    </Link>
+                  </nav>
+                </div>
                 
-                <nav className="hidden md:flex items-center space-x-6">
-                  <Link 
-                    href="/dashboard" 
-                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Dashboard
-                  </Link>
-                  <Link 
-                    href="/dashboard/schedule" 
-                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Schedule
-                  </Link>
-                  <Link 
-                    href="/dashboard/staff" 
-                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Staff
-                  </Link>
-                  <Link 
-                    href="/dashboard/analytics" 
-                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Analytics
-                  </Link>
-                  <Link 
-                    href="/dashboard" 
-                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Settings
-                  </Link>
-                </nav>
-              </div>
-              
-              <div className="flex items-center space-x-4">
-                <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
-                  <span className="text-sm font-medium">👤</span>
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-3">
+                    <span className="text-sm text-muted-foreground">
+                      {typeof window !== 'undefined' && localStorage.getItem('userEmail') ? 
+                        localStorage.getItem('userEmail') : 'User'
+                      }
+                    </span>
+                    <button
+                      onClick={() => {
+                        if (typeof window !== 'undefined') {
+                          localStorage.removeItem('userEmail');
+                          window.location.href = '/';
+                        }
+                      }}
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                  <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+                    <span className="text-sm font-medium">👤</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </header>
+          </header>
 
-        {/* Main Content */}
-        <main className="mx-auto max-w-7xl p-6">
-          {children}
-        </main>
-      </div>
-    </ErrorBoundary>
+          {/* Main Content */}
+          <main className="mx-auto max-w-7xl p-6">
+            {children}
+          </main>
+        </div>
+      </ErrorBoundary>
+    </AuthGuard>
   );
 }
 
