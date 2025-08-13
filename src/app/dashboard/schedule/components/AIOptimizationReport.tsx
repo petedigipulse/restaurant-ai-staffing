@@ -6,14 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface AIOptimizationReportProps {
   report: {
-    reasoning: string;
-    expectedEfficiency: number;
-    costSavings: number;
-    totalLaborCost: number;
-    totalHours: number;
-    recommendations: string[];
-    nextSteps: string[];
-    aiCost: number;
+    reasoning?: string;
+    expectedEfficiency?: number;
+    costSavings?: number;
+    totalLaborCost?: number;
+    totalHours?: number;
+    recommendations?: string[];
+    nextSteps?: string[];
+    aiCost?: number;
   } | null;
   onClose: () => void;
 }
@@ -53,28 +53,28 @@ export default function AIOptimizationReport({ report, onClose }: AIOptimization
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-blue-600">{report.expectedEfficiency}%</div>
+                <div className="text-2xl font-bold text-blue-600">{report.expectedEfficiency || 0}%</div>
                 <div className="text-sm text-blue-700">Expected Efficiency</div>
               </CardContent>
             </Card>
             
             <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-green-600">${report.costSavings}</div>
+                <div className="text-2xl font-bold text-green-600">${report.costSavings || 0}</div>
                 <div className="text-sm text-green-700">Cost Savings</div>
               </CardContent>
             </Card>
             
             <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-purple-600">${report.totalLaborCost}</div>
+                <div className="text-2xl font-bold text-purple-600">${report.totalLaborCost || 0}</div>
                 <div className="text-sm text-purple-700">Total Labor Cost</div>
               </CardContent>
             </Card>
             
             <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-orange-600">{report.totalHours}h</div>
+                <div className="text-2xl font-bold text-orange-600">{report.totalHours || 0}h</div>
                 <div className="text-sm text-orange-700">Total Hours</div>
               </CardContent>
             </Card>
@@ -93,7 +93,7 @@ export default function AIOptimizationReport({ report, onClose }: AIOptimization
             <CardContent>
               <div className="prose max-w-none">
                 <p className="text-gray-700 leading-relaxed">
-                  {report.reasoning}
+                  {report.reasoning || 'No reasoning provided.'}
                 </p>
               </div>
             </CardContent>
@@ -110,14 +110,18 @@ export default function AIOptimizationReport({ report, onClose }: AIOptimization
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-2">
-                {report.recommendations.map((rec, index) => (
-                  <li key={index} className="flex items-start space-x-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-                    <span className="text-gray-700">{rec}</span>
-                  </li>
-                ))}
-              </ul>
+              {report.recommendations && report.recommendations.length > 0 ? (
+                <ul className="space-y-2">
+                  {report.recommendations.map((rec, index) => (
+                    <li key={index} className="flex items-start space-x-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <span className="text-gray-700">{rec}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-500 italic">No specific recommendations available.</p>
+              )}
             </CardContent>
           </Card>
 
@@ -132,14 +136,18 @@ export default function AIOptimizationReport({ report, onClose }: AIOptimization
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-2">
-                {report.nextSteps.map((step, index) => (
-                  <li key={index} className="flex items-start space-x-2">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 flex-shrink-0"></div>
-                    <span className="text-gray-700">{step}</span>
-                  </li>
-                ))}
-              </ul>
+              {report.nextSteps && report.nextSteps.length > 0 ? (
+                <ul className="space-y-2">
+                  {report.nextSteps.map((step, index) => (
+                    <li key={index} className="flex items-start space-x-2">
+                      <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <span className="text-gray-700">{step}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-500 italic">No specific next steps available.</p>
+              )}
             </CardContent>
           </Card>
 
@@ -151,7 +159,7 @@ export default function AIOptimizationReport({ report, onClose }: AIOptimization
                   AI processing cost for this optimization
                 </div>
                 <div className="text-lg font-semibold text-gray-900">
-                  ${report.aiCost.toFixed(6)}
+                  ${(report.aiCost || 0).toFixed(6)}
                 </div>
               </div>
             </CardContent>
