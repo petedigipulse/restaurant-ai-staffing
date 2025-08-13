@@ -43,9 +43,10 @@ export async function POST(req: Request) {
                   totalHours += shiftHours;
                   
                   // Calculate cost based on hourly wage
-                  if (staff.hourly_wage && typeof staff.hourly_wage === 'number') {
-                    totalLaborCost += staff.hourly_wage * shiftHours;
-                    console.log(`Added ${staff.hourly_wage * shiftHours} to total cost for ${staff.name}`);
+                  const hourlyWage = staff.hourly_wage || staff.hourlyWage;
+                  if (hourlyWage && typeof hourlyWage === 'number') {
+                    totalLaborCost += hourlyWage * shiftHours;
+                    console.log(`Added ${hourlyWage * shiftHours} to total cost for ${staff.first_name || staff.name || 'Unknown'}`);
                   } else {
                     console.warn('Staff member missing hourly_wage:', staff);
                   }

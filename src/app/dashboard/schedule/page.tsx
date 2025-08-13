@@ -239,7 +239,18 @@ export default function SchedulePage() {
                       
                       // Map database staff assignments to our staff data
                       const assignedStaff = dbStation.assignedStaff.map((dbStaff: any) => {
-                        const staffMember = staffMembers.find(s => s.id === dbStaff.id);
+                        // First try to find by UUID ID
+                        let staffMember = staffMembers.find(s => s.id === dbStaff.id);
+                        
+                        // If not found by UUID, try to find by name (AI uses names as IDs)
+                        if (!staffMember && dbStaff.name) {
+                          staffMember = staffMembers.find(s => 
+                            `${s.first_name} ${s.last_name}`.trim() === dbStaff.name.trim() ||
+                            s.first_name === dbStaff.name ||
+                            s.last_name === dbStaff.name
+                          );
+                        }
+                        
                         if (staffMember) {
                           console.log(`✅ Found matching staff member:`, staffMember);
                           return staffMember;
@@ -290,7 +301,18 @@ export default function SchedulePage() {
                       console.log(`✅ Found ${dbStation.assignedStaff.length} assigned staff for dinner ${station.name}:`, dbStation.assignedStaff);
                       
                       const assignedStaff = dbStation.assignedStaff.map((dbStaff: any) => {
-                        const staffMember = staffMembers.find(s => s.id === dbStaff.id);
+                        // First try to find by UUID ID
+                        let staffMember = staffMembers.find(s => s.id === dbStaff.id);
+                        
+                        // If not found by UUID, try to find by name (AI uses names as IDs)
+                        if (!staffMember && dbStaff.name) {
+                          staffMember = staffMembers.find(s => 
+                            `${s.first_name} ${s.last_name}`.trim() === dbStaff.name.trim() ||
+                            s.first_name === dbStaff.name ||
+                            s.last_name === dbStaff.name
+                          );
+                        }
+                        
                         if (staffMember) {
                           console.log(`✅ Found matching staff member for dinner:`, staffMember);
                           return staffMember;
