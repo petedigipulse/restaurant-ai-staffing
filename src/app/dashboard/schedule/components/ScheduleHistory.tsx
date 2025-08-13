@@ -15,54 +15,68 @@ interface Schedule {
 interface ScheduleHistoryProps {
   organizationId: string;
   onViewScheduleDetails: (schedule: Schedule) => void; // Add callback prop
+  refreshTrigger?: number; // Add refresh trigger prop
 }
 
-export default function ScheduleHistory({ organizationId, onViewScheduleDetails }: ScheduleHistoryProps) {
+export default function ScheduleHistory({ organizationId, onViewScheduleDetails, refreshTrigger }: ScheduleHistoryProps) {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchSchedules = async () => {
-      try {
-        const response = await fetch(`/api/schedule?organizationId=${organizationId}`);
-        if (response.ok) {
-          const data = await response.json();
-          console.log('📅 ScheduleHistory API response:', data);
-          
-          // Handle the API response structure - data should be an array of schedules
-          if (Array.isArray(data) && data.length > 0) {
-            // Transform the data to match our interface
-            const transformedSchedules = data.map((schedule: any) => ({
-              id: schedule.id,
-              week_start_date: schedule.week_start_date,
-              total_labor_cost: schedule.total_labor_cost || 0,
-              total_hours: schedule.total_hours || 0,
-              ai_generated: schedule.ai_generated || false,
-              created_at: schedule.created_at,
-              updated_at: schedule.updated_at,
-              shifts: schedule.shifts // Include shifts data for details modal
-            }));
-            setSchedules(transformedSchedules);
-          } else {
-            // No schedules found
-            setSchedules([]);
-          }
+  const fetchSchedules = async () => {
+    try {
+      const response = await fetch(`/api/schedule?organizationId=${organizationId}`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📅 ScheduleHistory API response:', data);
+        
+        // Handle the current API response structure
+        if (data.success && data.scheduleId) {
+          // API returns a single schedule with success flag
+          const schedule = {
+            id: data.scheduleId,
+            week_start_date: data.weekStart || new Date().toISOString(),
+            total_labor_cost: data.totalLaborCost || 0,
+            total_hours: data.totalHours || 0,
+            ai_generated: true, // Assume AI generated since it's from database
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            shifts: data.shifts || {} // Include shifts data for details modal
+          };
+          setSchedules([schedule]);
+        } else if (Array.isArray(data) && data.length > 0) {
+          // Fallback: handle if API ever returns array format
+          const transformedSchedules = data.map((schedule: any) => ({
+            id: schedule.id,
+            week_start_date: schedule.week_start_date,
+            total_labor_cost: schedule.total_labor_cost || 0,
+            total_hours: schedule.total_hours || 0,
+            ai_generated: schedule.ai_generated || false,
+            created_at: schedule.created_at,
+            updated_at: schedule.updated_at,
+            shifts: schedule.shifts
+          }));
+          setSchedules(transformedSchedules);
         } else {
-          console.error('Failed to fetch schedules:', response.status);
+          // No schedules found
           setSchedules([]);
         }
-      } catch (error) {
-        console.error('Error fetching schedules:', error);
+      } else {
+        console.error('Failed to fetch schedules:', response.status);
         setSchedules([]);
-      } finally {
-        setIsLoading(false);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching schedules:', error);
+      setSchedules([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     if (organizationId) {
       fetchSchedules();
     }
-  }, [organizationId]);
+  }, [organizationId, refreshTrigger]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -107,8 +121,21 @@ export default function ScheduleHistory({ organizationId, onViewScheduleDetails 
   return (
     <div className="bg-white rounded-lg shadow-sm border">
       <div className="p-6 border-b">
-        <h2 className="text-xl font-semibold text-gray-900">Schedule History</h2>
-        <p className="text-sm text-gray-500 mt-1">Your previously generated schedules</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Schedule History</h2>
+            <p className="text-sm text-gray-500 mt-1">Your previously generated schedules</p>
+          </div>
+          <button
+            onClick={() => {
+              setIsLoading(true);
+              fetchSchedules();
+            }}
+            className="px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+          >
+            🔄 Refresh
+          </button>
+        </div>
       </div>
       
       <div className="p-6">

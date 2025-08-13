@@ -183,6 +183,7 @@ export default function SchedulePage() {
     created_at: string;
     updated_at: string;
   } | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Load staff data from database
   useEffect(() => {
@@ -899,6 +900,7 @@ export default function SchedulePage() {
         const result = await response.json();
         setConflictAlert(`Schedule saved successfully! Total cost: $${result.totalLaborCost.toFixed(2)}, Total hours: ${result.totalHours}`);
         setTimeout(() => setConflictAlert(null), 8000);
+        setRefreshTrigger(prev => prev + 1); // Trigger refresh of ScheduleHistory
       } else {
         const error = await response.json();
         setConflictAlert(`Failed to save schedule: ${error.error}`);
@@ -1309,6 +1311,7 @@ export default function SchedulePage() {
             <ScheduleHistory 
               organizationId={organizationId} 
               onViewScheduleDetails={handleViewScheduleDetails}
+              refreshTrigger={refreshTrigger} // Pass refreshTrigger
             />
           </div>
         )}
