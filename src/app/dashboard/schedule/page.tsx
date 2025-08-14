@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { DatabaseService } from "@/lib/services/database";
 import { StaffMember } from "@/lib/supabase";
 import WeatherForecast from "./components/WeatherForecast";
@@ -9,6 +9,7 @@ import { useSession } from "next-auth/react";
 import AIOptimizationReport from './components/AIOptimizationReport';
 import AIProgressTracker from './components/AIProgressTracker';
 import ScheduleDetailsModal from './components/ScheduleDetailsModal';
+import PerformanceAnalytics from './components/PerformanceAnalytics';
 import { Button } from "@/components/ui/button";
 
 interface Shift {
@@ -180,22 +181,29 @@ export default function SchedulePage() {
   const [aiOptimizationReport, setAiOptimizationReport] = useState<any>(null);
   const [showAIProgress, setShowAIProgress] = useState(false);
   const [showScheduleDetails, setShowScheduleDetails] = useState(false);
-  const [selectedSchedule, setSelectedSchedule] = useState<{
-    id: string;
-    week_start_date: string;
-    shifts: any;
-    total_labor_cost: number;
-    total_hours: number;
-    ai_generated: boolean;
-    created_at: string;
-    updated_at: string;
-  } | null>(null);
+  const [selectedSchedule, setSelectedSchedule] = useState<any>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [selectedTeamType, setSelectedTeamType] = useState<'A' | 'B' | null>(null);
+  const [selectedTeamStaff, setSelectedTeamStaff] = useState<string[]>([]);
   const [selectedStartDate, setSelectedStartDate] = useState<Date>(new Date());
   const [selectedEndDate, setSelectedEndDate] = useState<Date>(new Date());
   const [scheduleDays, setScheduleDays] = useState<ScheduleDay[]>([]);
   const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
   const scheduleDaysRef = useRef<ScheduleDay[]>([]);
+  
+  // Calculate performance tiers for team selection
+  const performanceTiers = useMemo(() => {
+    if (!staffMembers.length) return null;
+    
+    const sorted = [...staffMembers].sort((a, b) => (b.performance_score || 0) - (a.performance_score || 0));
+    const total = sorted.length;
+    
+    return {
+      aTeam: sorted.slice(0, Math.ceil(total * 0.3)), // Top 30%
+      bTeam: sorted.slice(Math.ceil(total * 0.3), Math.ceil(total * 0.7)), // Middle 40%
+      cTeam: sorted.slice(Math.ceil(total * 0.7)) // Bottom 30%
+    };
+  }, [staffMembers]);
   
   // Update ref when scheduleDays changes
   useEffect(() => {
@@ -1016,6 +1024,12 @@ export default function SchedulePage() {
     setAiOptimizationReport(null);
   }, []);
 
+  const handleTeamSelection = useCallback((teamType: 'A' | 'B', staffIds: string[]) => {
+    setSelectedTeamType(teamType);
+    setSelectedTeamStaff(staffIds);
+    console.log(`Selected ${teamType}-Team with ${staffIds.length} staff members:`, staffIds);
+  }, []);
+
   const handleViewScheduleDetails = useCallback((schedule: any) => {
     setSelectedSchedule(schedule);
     setShowScheduleDetails(true);
@@ -1192,7 +1206,8 @@ export default function SchedulePage() {
               { name: 'Overview', href: '/dashboard' },
               { name: 'Scheduling', href: '/dashboard/schedule' },
               { name: 'Analytics', href: '/dashboard/analytics' },
-              { name: 'Staff', href: '/dashboard/staff' }
+              { name: 'Staff', href: '/dashboard/staff' },
+              { name: 'Performance', href: '/dashboard/performance' }
             ].map((tab) => (
               <a
                 key={tab.name}
@@ -1229,6 +1244,58 @@ export default function SchedulePage() {
         <div className="mb-6">
           <DateRangePicker onDateRangeChange={handleDateRangeChange} />
         </div>
+
+        {/* Team Selection Indicator */}
+        {selectedTeamType && (
+          <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className={`w-4 h-4 rounded-full ${
+                  selectedTeamType === 'A' ? 'bg-green-500' : 'bg-blue-500'
+                }`}></div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">
+                    {selectedTeamType === 'A' ? '🏆 A-Team' : '💰 B-Team'} Selected
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    {selectedTeamStaff.length} staff members selected for this schedule
+                  </p>
+                </div>
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => handleTeamSelection('A', performanceTiers?.aTeam?.map(s => s.id) || [])}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    selectedTeamType === 'A'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  A-Team
+                </button>
+                <button
+                  onClick={() => handleTeamSelection('B', performanceTiers?.bTeam?.map(s => s.id) || [])}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    selectedTeamType === 'B'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  B-Team
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedTeamType(null);
+                    setSelectedTeamStaff([]);
+                  }}
+                  className="px-4 py-2 rounded-lg font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* New Modern Schedule Layout */}
         <div className="space-y-6">
@@ -1564,6 +1631,14 @@ export default function SchedulePage() {
               )}
             </div>
           </div>
+        </div>
+        
+        {/* Performance Analytics */}
+        <div className="mt-8">
+          <PerformanceAnalytics 
+            staffMembers={staffMembers}
+            onTeamSelection={handleTeamSelection}
+          />
         </div>
         
         {/* Schedule History */}
