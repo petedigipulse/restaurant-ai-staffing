@@ -29,6 +29,9 @@ export async function POST(request: NextRequest) {
     const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
     const dataRows = lines.slice(1);
 
+    console.log('📋 CSV Headers found:', headers);
+    console.log('📊 CSV Data rows:', dataRows.length);
+
     // Parse data rows
     const historicalData = [];
     for (const row of dataRows) {
@@ -42,8 +45,10 @@ export async function POST(request: NextRequest) {
       });
 
       // Extract date and time for weather API call
-      const date = rowData.date || rowData.Date || rowData.DATE;
-      const time = rowData.time || rowData.Time || rowData.TIME;
+      const date = rowData.date || rowData.Date || rowData.DATE || rowData.Date || rowData.date;
+      const time = rowData.time || rowData.Time || rowData.TIME || rowData.time || rowData.Time;
+      
+      console.log('📅 Processing row:', { date, time, rowData });
       
       if (date) {
         try {
@@ -55,8 +60,8 @@ export async function POST(request: NextRequest) {
             organization_id: organizationId,
             date: date,
             time: time || '12:00:00',
-            total_sales: parseFloat(rowData.total_sales || rowData['Total Sales'] || rowData['TOTAL_SALES'] || '0'),
-            customer_count: parseInt(rowData.customer_count || rowData['Customer Count'] || rowData['CUSTOMER_COUNT'] || '0'),
+            total_sales: parseFloat(rowData.total_sales || rowData['Total Sales'] || rowData['TOTAL_SALES'] || '0') || 0,
+            customer_count: parseInt(rowData.customer_count || rowData['Customer Count'] || rowData['CUSTOMER_COUNT'] || '0') || 0,
             weather_conditions: weatherData.conditions || null,
             special_events: (rowData.special_events || rowData['Special Events'] || rowData['SPECIAL_EVENTS'] || '').trim() || null,
             notes: (rowData.notes || rowData['Notes'] || rowData['NOTES'] || '').trim() || null,
@@ -64,8 +69,14 @@ export async function POST(request: NextRequest) {
             created_at: new Date().toISOString()
           };
 
-          // Only add if we have valid data
-          if (cleanData.date && (cleanData.total_sales > 0 || cleanData.customer_count > 0)) {
+          // Log the parsed data for debugging
+          console.log('📊 Parsed CSV row:', {
+            original: rowData,
+            parsed: cleanData
+          });
+
+          // Add all valid data (don't filter out 0 sales/customers as they might be valid)
+          if (cleanData.date) {
             historicalData.push(cleanData);
           }
         } catch (error) {
@@ -75,8 +86,8 @@ export async function POST(request: NextRequest) {
             organization_id: organizationId,
             date: date,
             time: time || '12:00:00',
-            total_sales: parseFloat(rowData.total_sales || rowData['Total Sales'] || rowData['TOTAL_SALES'] || '0'),
-            customer_count: parseInt(rowData.customer_count || rowData['Customer Count'] || rowData['CUSTOMER_COUNT'] || '0'),
+            total_sales: parseFloat(rowData.total_sales || rowData['Total Sales'] || rowData['TOTAL_SALES'] || '0') || 0,
+            customer_count: parseInt(rowData.customer_count || rowData['Customer Count'] || rowData['CUSTOMER_COUNT'] || '0') || 0,
             weather_conditions: null,
             special_events: (rowData.special_events || rowData['Special Events'] || rowData['SPECIAL_EVENTS'] || '').trim() || null,
             notes: (rowData.notes || rowData['Notes'] || rowData['NOTES'] || '').trim() || null,
@@ -84,8 +95,14 @@ export async function POST(request: NextRequest) {
             created_at: new Date().toISOString()
           };
 
-          // Only add if we have valid data
-          if (cleanData.date && (cleanData.total_sales > 0 || cleanData.customer_count > 0)) {
+          // Log the parsed data for debugging
+          console.log('📊 Parsed CSV row (no weather):', {
+            original: rowData,
+            parsed: cleanData
+          });
+
+          // Add all valid data (don't filter out 0 sales/customers as they might be valid)
+          if (cleanData.date) {
             historicalData.push(cleanData);
           }
         }
@@ -98,6 +115,18 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Log summary of imported data
+    const totalSales = historicalData.reduce((sum, item) => sum + (item.total_sales || 0), 0);
+    const totalCustomers = historicalData.reduce((sum, item) => sum + (item.customer_count || 0), 0);
+    
+    console.log('📊 Import Summary:', {
+      totalRecords: historicalData.length,
+      totalSales,
+      totalCustomers,
+      averageSales: totalSales / historicalData.length,
+      averageCustomers: totalCustomers / historicalData.length
+    });
 
     // Save to database
     try {
