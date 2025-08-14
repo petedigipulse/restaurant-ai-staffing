@@ -103,8 +103,19 @@ export async function GET(req: Request) {
           'thursday': 'Thu',
           'friday': 'Fri',
           'saturday': 'Sat',
-          'sunday': 'Sun'
+          'sunday': 'Sun',
+          // Also handle the actual database format (Fri, Mon, etc.)
+          'mon': 'Mon',
+          'tue': 'Tue',
+          'wed': 'Wed',
+          'thu': 'Thu',
+          'fri': 'Fri',
+          'sat': 'Sat',
+          'sun': 'Sun'
         };
+        
+        console.log('🔍 Raw database shifts:', latestSchedule.shifts);
+        console.log('🔍 Database day keys:', Object.keys(latestSchedule.shifts));
         
         // Map database station names to frontend station names
         const stationMapping: { [key: string]: string } = {
@@ -115,8 +126,19 @@ export async function GET(req: Request) {
         };
         
         Object.entries(latestSchedule.shifts).forEach(([dbDay, dbDayData]: [string, any]) => {
-          const frontendDay = dayMapping[dbDay.toLowerCase()];
-          if (frontendDay && dbDayData) {
+          console.log(`🔍 Processing database day: "${dbDay}" with data:`, dbDayData);
+          
+          // Try to find the frontend day name
+          let frontendDay = dayMapping[dbDay.toLowerCase()];
+          if (!frontendDay) {
+            // If no mapping found, use the original day name
+            frontendDay = dbDay;
+            console.log(`⚠️ No day mapping found for "${dbDay}", using original`);
+          }
+          
+          console.log(`🔍 Mapped "${dbDay}" to frontend day: "${frontendDay}"`);
+          
+          if (dbDayData) {
             transformedShifts[frontendDay] = {
               lunch: {
                 name: 'Lunch',
@@ -132,8 +154,10 @@ export async function GET(req: Request) {
             
             // Transform lunch stations
             if (dbDayData.lunch?.stations) {
+              console.log(`🔍 Processing lunch stations for ${frontendDay}:`, dbDayData.lunch.stations);
               Object.entries(dbDayData.lunch.stations).forEach(([dbStation, dbStationData]: [string, any]) => {
                 const frontendStation = stationMapping[dbStation.toLowerCase()] || dbStation;
+                console.log(`🔍 Station mapping: "${dbStation}" -> "${frontendStation}"`);
                 if (frontendStation) {
                   (transformedShifts[frontendDay] as any).lunch.stations[frontendStation] = {
                     name: frontendStation,
@@ -141,14 +165,17 @@ export async function GET(req: Request) {
                     assignedStaff: dbStationData.assignedStaff || [],
                     color: 'yellow'
                   };
+                  console.log(`✅ Added lunch station "${frontendStation}" with ${(dbStationData.assignedStaff || []).length} staff`);
                 }
               });
             }
             
             // Transform dinner stations
             if (dbDayData.dinner?.stations) {
+              console.log(`🔍 Processing dinner stations for ${frontendDay}:`, dbDayData.dinner.stations);
               Object.entries(dbDayData.dinner.stations).forEach(([dbStation, dbStationData]: [string, any]) => {
                 const frontendStation = stationMapping[dbStation.toLowerCase()] || dbStation;
+                console.log(`🔍 Station mapping: "${dbStation}" -> "${frontendStation}"`);
                 if (frontendStation) {
                   (transformedShifts[frontendDay] as any).dinner.stations[frontendStation] = {
                     name: frontendStation,
@@ -156,6 +183,7 @@ export async function GET(req: Request) {
                     assignedStaff: dbStationData.assignedStaff || [],
                     color: 'yellow'
                   };
+                  console.log(`✅ Added dinner station "${frontendStation}" with ${(dbStationData.assignedStaff || []).length} staff`);
                 }
               });
             }

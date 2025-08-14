@@ -206,33 +206,43 @@ export default function SchedulePage() {
   const generateScheduleDays = useCallback((startDate: Date, endDate: Date) => {
     const days: ScheduleDay[] = [];
     const currentDate = new Date(startDate);
+    const seenDays = new Set<string>(); // Track seen days to prevent duplicates
     
     while (currentDate <= endDate) {
       const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'short' });
       
+      // Ensure unique day names by adding date suffix if needed
+      let uniqueDayName = dayName;
+      let counter = 1;
+      while (seenDays.has(uniqueDayName)) {
+        uniqueDayName = `${dayName}-${counter}`;
+        counter++;
+      }
+      seenDays.add(uniqueDayName);
+      
       days.push({
-        day: dayName,
+        day: uniqueDayName,
         date: new Date(currentDate),
         lunch: {
-          id: `${dayName.toLowerCase()}-lunch`,
+          id: `${uniqueDayName.toLowerCase()}-lunch`,
           name: 'Lunch',
           time: '11:00-15:00',
           stations: [
-            { id: `${dayName.toLowerCase()}-lunch-kitchen`, name: 'Kitchen', requiredCapacity: 2, assignedStaff: [], color: 'yellow' },
-            { id: `${dayName.toLowerCase()}-lunch-foh`, name: 'Front of House', requiredCapacity: 3, assignedStaff: [], color: 'yellow' },
-            { id: `${dayName.toLowerCase()}-lunch-bar`, name: 'Bar', requiredCapacity: 1, assignedStaff: [], color: 'yellow' },
-            { id: `${dayName.toLowerCase()}-lunch-host`, name: 'Host', requiredCapacity: 1, assignedStaff: [], color: 'yellow' }
+            { id: `${uniqueDayName.toLowerCase()}-lunch-kitchen`, name: 'Kitchen', requiredCapacity: 2, assignedStaff: [], color: 'yellow' },
+            { id: `${uniqueDayName.toLowerCase()}-lunch-foh`, name: 'Front of House', requiredCapacity: 3, assignedStaff: [], color: 'yellow' },
+            { id: `${uniqueDayName.toLowerCase()}-lunch-bar`, name: 'Bar', requiredCapacity: 1, assignedStaff: [], color: 'yellow' },
+            { id: `${uniqueDayName.toLowerCase()}-lunch-host`, name: 'Host', requiredCapacity: 1, assignedStaff: [], color: 'yellow' }
           ]
         },
         dinner: {
-          id: `${dayName.toLowerCase()}-dinner`,
+          id: `${uniqueDayName.toLowerCase()}-dinner`,
           name: 'Dinner',
           time: '17:00-22:00',
           stations: [
-            { id: `${dayName.toLowerCase()}-dinner-kitchen`, name: 'Kitchen', requiredCapacity: 3, assignedStaff: [], color: 'yellow' },
-            { id: `${dayName.toLowerCase()}-dinner-foh`, name: 'Front of House', requiredCapacity: 4, assignedStaff: [], color: 'yellow' },
-            { id: `${dayName.toLowerCase()}-dinner-bar`, name: 'Bar', requiredCapacity: 2, assignedStaff: [], color: 'yellow' },
-            { id: `${dayName.toLowerCase()}-dinner-host`, name: 'Host', requiredCapacity: 1, assignedStaff: [], color: 'yellow' }
+            { id: `${uniqueDayName.toLowerCase()}-dinner-kitchen`, name: 'Kitchen', requiredCapacity: 3, assignedStaff: [], color: 'yellow' },
+            { id: `${uniqueDayName.toLowerCase()}-dinner-foh`, name: 'Front of House', requiredCapacity: 4, assignedStaff: [], color: 'yellow' },
+            { id: `${uniqueDayName.toLowerCase()}-dinner-bar`, name: 'Bar', requiredCapacity: 2, assignedStaff: [], color: 'yellow' },
+            { id: `${uniqueDayName.toLowerCase()}-dinner-host`, name: 'Host', requiredCapacity: 1, assignedStaff: [], color: 'yellow' }
           ]
         }
       });
@@ -240,6 +250,7 @@ export default function SchedulePage() {
       currentDate.setDate(currentDate.getDate() + 1);
     }
     
+    console.log('📅 Generated schedule days:', days.map(d => ({ day: d.day, date: d.date.toISOString().split('T')[0] })));
     setScheduleDays(days);
   }, []);
 
