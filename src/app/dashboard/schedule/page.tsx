@@ -385,7 +385,7 @@ export default function SchedulePage() {
                             last_name: dbStaff.last_name || '',
                             role: dbStaff.role || 'Staff',
                             performance_score: 80,
-                            availability: { monday: { available: true }, tuesday: { available: true }, wednesday: { available: true }, thursday: { available: true }, friday: { available:true } },
+                            availability: { monday: { available: true }, tuesday: { available: true }, wednesday: { available: true }, thursday: { available: true }, friday: { available: true } },
                             stations: [station.name],
                             hourly_wage: dbStaff.hourly_wage || 25,
                             organization_id: orgId,
@@ -1230,179 +1230,338 @@ export default function SchedulePage() {
           <DateRangePicker onDateRangeChange={handleDateRangeChange} />
         </div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Weekly Schedule */}
-          <div className="lg:col-span-3">
-            <div className="bg-white rounded-lg shadow-sm border">
-              <div className="p-6 border-b">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Schedule: {selectedStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {selectedEndDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </h2>
-                <p className="text-sm text-gray-500 mt-1">Drag staff cards into shifts/stations.</p>
+        {/* New Modern Schedule Layout */}
+        <div className="space-y-6">
+          {/* Schedule Header */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-900">
+                Staff Schedule
+              </h2>
+              <p className="text-gray-600 mt-1">
+                {selectedStartDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - {selectedEndDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              </p>
+            </div>
+            
+            {/* Days Header */}
+            <div className="p-6 bg-gray-50 border-b border-gray-200">
+              <div className="grid grid-cols-7 gap-4">
+                {scheduleDays.map((day) => (
+                  <div key={day.day} className="text-center">
+                    <div className="text-lg mb-1" title="Weather forecast will appear here">🌤️</div>
+                    <div className="font-semibold text-gray-900 text-sm">{day.day}</div>
+                    <div className="text-xs text-gray-500">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                  </div>
+                ))}
               </div>
-              
-              <div className="p-6">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-3 px-4 font-medium text-gray-900 w-20">Day</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-900">Lunch (11:00-15:00)</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-900">Dinner (17:00-22:00)</th>
-                      </tr>
-                      <tr className="border-b bg-gray-50">
-                        <th className="py-2 px-4"></th>
-                        <th className="py-2 px-4">
-                          <div className="flex justify-center space-x-4">
-                            {scheduleDays.map((day) => (
-                              <div key={day.day} className="text-center">
-                                <div className="text-lg" title="Weather forecast will appear here">🌤️</div>
-                                <div className="text-xs text-gray-500">{day.day}</div>
-                                <div className="text-xs text-gray-400">{day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                              </div>
-                            ))}
-                          </div>
-                        </th>
-                        <th className="py-2 px-4"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {scheduleDays.map((day) => (
-                        <tr key={day.day} className="border-b">
-                          <td className="py-4 px-4 font-medium text-gray-900">{day.day}</td>
-                          
+            </div>
+            
+            {/* Stations Grid */}
+            <div className="p-6">
+              <div className="space-y-8">
+                {/* Kitchen Station */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Kitchen</h3>
+                  <div className="grid grid-cols-7 gap-4">
+                    {scheduleDays.map((day) => (
+                      <div key={`kitchen-${day.day}`} className="min-h-[120px]">
+                        <div className="text-center mb-2">
+                          <span className="text-xs font-medium text-gray-500">Kitchen</span>
+                        </div>
+                        <div className="space-y-2">
                           {/* Lunch Shift */}
-                          <td className="py-4 px-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              {day.lunch.stations.map((station) => (
+                          <div 
+                            className="bg-orange-50 border border-orange-200 rounded-lg p-3 min-h-[80px]"
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, { id: `kitchen-lunch-${day.day}`, name: 'Kitchen', requiredCapacity: 3, assignedStaff: [], color: 'yellow' }, day.day, 'lunch')}
+                          >
+                            <div className="text-xs font-medium text-orange-700 mb-2">Lunch</div>
+                            <div className="space-y-1">
+                              {day.lunch.stations.find(s => s.name === 'Kitchen')?.assignedStaff.map((staff) => (
                                 <div
-                                  key={station.id}
-                                  className={`p-3 border rounded-lg ${getStationColor(station.color)}`}
-                                  onDragOver={handleDragOver}
-                                  onDrop={(e) => handleDrop(e, station, day.day, 'lunch')}
+                                  key={`kitchen-lunch-${staff.id}`}
+                                  className="bg-white border border-orange-200 rounded px-2 py-1 text-xs cursor-pointer hover:bg-orange-100 transition-colors"
+                                  onClick={() => removeStaffFromStation(staff.id, 'kitchen', day.day, 'lunch')}
+                                  title="Click to remove"
                                 >
-                                  <div className="flex items-center justify-between mb-2">
-                                    <h4 className="text-sm font-medium text-gray-900">{station.name}</h4>
-                                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getCapacityColor(station.color)}`}>
-                                      {station.assignedStaff.length}/{station.requiredCapacity}
-                                    </span>
-                                  </div>
-                                  
-                                  <div className="space-y-2">
-                                    {station.assignedStaff.map((staff) => (
-                                      <div
-                                        key={`${station.id}-${staff.id}-lunch`}
-                                        className="flex items-center justify-between p-2 bg-white rounded border cursor-pointer hover:bg-gray-50"
-                                        onClick={() => removeStaffFromStation(staff.id, station.id, day.day, 'lunch')}
-                                        title="Click to remove"
-                                      >
-                                        <span className="text-sm font-medium text-gray-900">{staff.first_name} {staff.last_name}</span>
-                                        <span className="text-xs text-gray-500">{staff.role}</span>
-                                      </div>
-                                    ))}
-                                  </div>
+                                  <div className="font-medium text-gray-900">{staff.first_name} {staff.last_name}</div>
+                                  <div className="text-gray-500">{staff.role}</div>
                                 </div>
                               ))}
                             </div>
-                          </td>
+                          </div>
                           
                           {/* Dinner Shift */}
-                          <td className="py-4 px-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              {day.dinner.stations.map((station) => (
+                          <div 
+                            className="bg-red-50 border border-red-200 rounded-lg p-3 min-h-[80px]"
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, { id: `kitchen-dinner-${day.day}`, name: 'Kitchen', requiredCapacity: 3, assignedStaff: [], color: 'yellow' }, day.day, 'dinner')}
+                          >
+                            <div className="text-xs font-medium text-red-700 mb-2">Dinner</div>
+                            <div className="space-y-1">
+                              {day.dinner.stations.find(s => s.name === 'Kitchen')?.assignedStaff.map((staff) => (
                                 <div
-                                  key={station.id}
-                                  className={`p-3 border rounded-lg ${getStationColor(station.color)}`}
-                                  onDragOver={handleDragOver}
-                                  onDrop={(e) => handleDrop(e, station, day.day, 'dinner')}
+                                  key={`kitchen-dinner-${staff.id}`}
+                                  className="bg-white border border-red-200 rounded px-2 py-1 text-xs cursor-pointer hover:bg-red-100 transition-colors"
+                                  onClick={() => removeStaffFromStation(staff.id, 'kitchen', day.day, 'dinner')}
+                                  title="Click to remove"
                                 >
-                                  <div className="flex items-center justify-between mb-2">
-                                    <h4 className="text-sm font-medium text-gray-900">{station.name}</h4>
-                                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getCapacityColor(station.color)}`}>
-                                      {station.assignedStaff.length}/{station.requiredCapacity}
-                                    </span>
-                                  </div>
-                                  
-                                  <div className="space-y-2">
-                                    {station.assignedStaff.map((staff) => (
-                                      <div
-                                        key={`${station.id}-${staff.id}-dinner`}
-                                        className="flex items-center justify-between p-2 bg-white rounded border cursor-pointer hover:bg-gray-50"
-                                        onClick={() => removeStaffFromStation(staff.id, station.id, day.day, 'dinner')}
-                                        title="Click to remove"
-                                      >
-                                        <span className="text-sm font-medium text-gray-900">{staff.first_name} {staff.last_name}</span>
-                                        <span className="text-xs text-gray-500">{staff.role}</span>
-                                      </div>
-                                    ))}
-                                  </div>
+                                  <div className="font-medium text-gray-900">{staff.first_name} {staff.last_name}</div>
+                                  <div className="text-gray-500">{staff.role}</div>
                                 </div>
                               ))}
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Front of House Station */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Front of House</h3>
+                  <div className="grid grid-cols-7 gap-4">
+                    {scheduleDays.map((day) => (
+                      <div key={`foh-${day.day}`} className="min-h-[120px]">
+                        <div className="text-center mb-2">
+                          <span className="text-xs font-medium text-gray-500">Front of House</span>
+                        </div>
+                        <div className="space-y-2">
+                          {/* Lunch Shift */}
+                          <div 
+                            className="bg-orange-50 border border-orange-200 rounded-lg p-3 min-h-[80px]"
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, { id: `foh-lunch-${day.day}`, name: 'Front of House', requiredCapacity: 3, assignedStaff: [], color: 'yellow' }, day.day, 'lunch')}
+                          >
+                            <div className="text-xs font-medium text-orange-700 mb-2">Lunch</div>
+                            <div className="space-y-1">
+                              {day.lunch.stations.find(s => s.name === 'Front of House')?.assignedStaff.map((staff) => (
+                                <div
+                                  key={`foh-lunch-${staff.id}`}
+                                  className="bg-white border border-orange-200 rounded px-2 py-1 text-xs cursor-pointer hover:bg-orange-100 transition-colors"
+                                  onClick={() => removeStaffFromStation(staff.id, 'front_of_house', day.day, 'lunch')}
+                                  title="Click to remove"
+                                >
+                                  <div className="font-medium text-gray-900">{staff.first_name} {staff.last_name}</div>
+                                  <div className="text-gray-500">{staff.role}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          {/* Dinner Shift */}
+                          <div 
+                            className="bg-red-50 border border-red-200 rounded-lg p-3 min-h-[80px]"
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, { id: `foh-dinner-${day.day}`, name: 'Front of House', requiredCapacity: 4, assignedStaff: [], color: 'yellow' }, day.day, 'dinner')}
+                          >
+                            <div className="text-xs font-medium text-red-700 mb-2">Dinner</div>
+                            <div className="space-y-1">
+                              {day.dinner.stations.find(s => s.name === 'Front of House')?.assignedStaff.map((staff) => (
+                                <div
+                                  key={`foh-dinner-${staff.id}`}
+                                  className="bg-white border border-red-200 rounded px-2 py-1 text-xs cursor-pointer hover:bg-red-100 transition-colors"
+                                  onClick={() => removeStaffFromStation(staff.id, 'front_of_house', day.day, 'dinner')}
+                                  title="Click to remove"
+                                >
+                                  <div className="font-medium text-gray-900">{staff.first_name} {staff.last_name}</div>
+                                  <div className="text-gray-500">{staff.role}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Bar Station */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Bar</h3>
+                  <div className="grid grid-cols-7 gap-4">
+                    {scheduleDays.map((day) => (
+                      <div key={`bar-${day.day}`} className="min-h-[120px]">
+                        <div className="text-center mb-2">
+                          <span className="text-xs font-medium text-gray-500">Bar</span>
+                        </div>
+                        <div className="space-y-2">
+                          {/* Lunch Shift */}
+                          <div 
+                            className="bg-orange-50 border border-orange-200 rounded-lg p-3 min-h-[80px]"
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, { id: `bar-lunch-${day.day}`, name: 'Bar', requiredCapacity: 1, assignedStaff: [], color: 'yellow' }, day.day, 'lunch')}
+                          >
+                            <div className="text-xs font-medium text-orange-700 mb-2">Lunch</div>
+                            <div className="space-y-1">
+                              {day.lunch.stations.find(s => s.name === 'Bar')?.assignedStaff.map((staff) => (
+                                <div
+                                  key={`bar-lunch-${staff.id}`}
+                                  className="bg-white border border-orange-200 rounded px-2 py-1 text-xs cursor-pointer hover:bg-orange-100 transition-colors"
+                                  onClick={() => removeStaffFromStation(staff.id, 'bar', day.day, 'lunch')}
+                                  title="Click to remove"
+                                >
+                                  <div className="font-medium text-gray-900">{staff.first_name} {staff.last_name}</div>
+                                  <div className="text-gray-500">{staff.role}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          {/* Dinner Shift */}
+                          <div 
+                            className="bg-red-50 border border-red-200 rounded-lg p-3 min-h-[80px]"
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, { id: `bar-dinner-${day.day}`, name: 'Bar', requiredCapacity: 2, assignedStaff: [], color: 'yellow' }, day.day, 'dinner')}
+                          >
+                            <div className="text-xs font-medium text-red-700 mb-2">Dinner</div>
+                            <div className="space-y-1">
+                              {day.dinner.stations.find(s => s.name === 'Bar')?.assignedStaff.map((staff) => (
+                                <div
+                                  key={`bar-dinner-${staff.id}`}
+                                  className="bg-white border border-red-200 rounded px-2 py-1 text-xs cursor-pointer hover:bg-red-100 transition-colors"
+                                  onClick={() => removeStaffFromStation(staff.id, 'bar', day.day, 'dinner')}
+                                  title="Click to remove"
+                                >
+                                  <div className="font-medium text-gray-900">{staff.first_name} {staff.last_name}</div>
+                                  <div className="text-gray-500">{staff.role}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Host Station */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Host</h3>
+                  <div className="grid grid-cols-7 gap-4">
+                    {scheduleDays.map((day) => (
+                      <div key={`host-${day.day}`} className="min-h-[120px]">
+                        <div className="text-center mb-2">
+                          <span className="text-xs font-medium text-gray-500">Host</span>
+                        </div>
+                        <div className="space-y-2">
+                          {/* Lunch Shift */}
+                          <div 
+                            className="bg-orange-50 border border-orange-200 rounded-lg p-3 min-h-[80px]"
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, { id: `host-lunch-${day.day}`, name: 'Host', requiredCapacity: 1, assignedStaff: [], color: 'yellow' }, day.day, 'lunch')}
+                          >
+                            <div className="text-xs font-medium text-orange-700 mb-2">Lunch</div>
+                            <div className="space-y-1">
+                              {day.lunch.stations.find(s => s.name === 'Host')?.assignedStaff.map((staff) => (
+                                <div
+                                  key={`host-lunch-${staff.id}`}
+                                  className="bg-white border border-orange-200 rounded px-2 py-1 text-xs cursor-pointer hover:bg-orange-100 transition-colors"
+                                  onClick={() => removeStaffFromStation(staff.id, 'host', day.day, 'lunch')}
+                                  title="Click to remove"
+                                >
+                                  <div className="font-medium text-gray-900">{staff.first_name} {staff.last_name}</div>
+                                  <div className="text-gray-500">{staff.role}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          {/* Dinner Shift */}
+                          <div 
+                            className="bg-red-50 border border-red-200 rounded-lg p-3 min-h-[80px]"
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, { id: `host-dinner-${day.day}`, name: 'Host', requiredCapacity: 1, assignedStaff: [], color: 'yellow' }, day.day, 'dinner')}
+                          >
+                            <div className="text-xs font-medium text-red-700 mb-2">Dinner</div>
+                            <div className="space-y-1">
+                              {day.dinner.stations.find(s => s.name === 'Host')?.assignedStaff.map((staff) => (
+                                <div
+                                  key={`host-dinner-${staff.id}`}
+                                  className="bg-white border border-red-200 rounded px-2 py-1 text-xs cursor-pointer hover:bg-red-100 transition-colors"
+                                  onClick={() => removeStaffFromStation(staff.id, 'host', day.day, 'dinner')}
+                                  title="Click to remove"
+                                >
+                                  <div className="font-medium text-gray-900">{staff.first_name} {staff.last_name}</div>
+                                  <div className="text-gray-500">{staff.role}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Right Sidebar - Weather and Staff */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Weather Forecast */}
-            <div>
+          {/* Weather Forecast */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Weather Forecast</h2>
+              <p className="text-sm text-gray-500 mt-1">Current weather conditions for scheduling</p>
+            </div>
+            <div className="p-6">
               <WeatherForecast />
             </div>
+          </div>
 
-            {/* Unassigned Staff */}
-            <div className="bg-white rounded-lg shadow-sm border">
-              <div className="p-6 border-b">
-                <h2 className="text-xl font-semibold text-gray-900">Unassigned Staff</h2>
-                <p className="text-sm text-gray-500 mt-1">{staffMembers.length} staff members available</p>
-              </div>
-              
-              <div className="p-6">
-                {staffMembers.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <p>All staff assigned!</p>
-                    <p className="text-sm">Drag staff from stations to reassign</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {staffMembers.map((staff) => (
-                      <div
-                        key={staff.id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, staff)}
-                        className="p-4 border rounded-lg hover:bg-gray-100 cursor-move transition-colors bg-gray-50"
-                      >
-                        <div className="mb-2">
-                          <div className="flex items-center justify-between">
-                            <h3 className="font-medium text-gray-900">{staff.first_name} {staff.last_name}</h3>
-                          </div>
-                          <p className="text-sm text-gray-600">{staff.role}</p>
+          {/* Unassigned Staff */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Available Staff</h2>
+              <p className="text-sm text-gray-500 mt-1">{staffMembers.length} staff members ready for assignment</p>
+            </div>
+            
+            <div className="p-6">
+              {staffMembers.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <div className="text-4xl mb-4">🎉</div>
+                  <p className="text-lg font-medium">All staff assigned!</p>
+                  <p className="text-sm">Drag staff from stations to reassign if needed</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {staffMembers.map((staff) => (
+                    <div
+                      key={staff.id}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, staff)}
+                      className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-move transition-all duration-200 hover:shadow-md bg-white"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h3 className="font-semibold text-gray-900 text-lg">{staff.first_name} {staff.last_name}</h3>
+                          <p className="text-gray-600 font-medium">{staff.role}</p>
                         </div>
-                        
-                        <div className="space-y-1 text-xs text-gray-500">
-                          <div>Perf {staff.performance_score || 0}%</div>
-                          <div>Avail {staff.availability && typeof staff.availability === 'object' 
+                        <div className="text-right">
+                          <div className="text-sm font-medium text-blue-600">${staff.hourly_wage}/hr</div>
+                          <div className="text-xs text-gray-500">Perf: {staff.performance_score || 0}%</div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2 text-sm text-gray-600">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-gray-400">📍</span>
+                          <span>Stations: {staff.stations.join(', ')}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-gray-400">📅</span>
+                          <span>Available: {staff.availability && typeof staff.availability === 'object' 
                             ? Object.keys(staff.availability).filter(day => 
                                 staff.availability[day as keyof typeof staff.availability] && 
                                 (staff.availability[day as keyof typeof staff.availability] as any)?.available
                               ).join(', ')
-                            : 'Not specified'}</div>
-                          <div>Stations: {staff.stations.join(', ')}</div>
-                          <div>Wage: ${staff.hourly_wage}/hr</div>
-                          
-                          {/* Conflicts removed since database StaffMember type doesn't have conflicts */}
+                            : 'Not specified'}</span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
