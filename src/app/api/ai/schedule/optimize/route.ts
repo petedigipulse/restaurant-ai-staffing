@@ -121,7 +121,7 @@ export async function POST(req: Request) {
         totalHours: totalHours
       },
       recommendations: recommendations || [],
-      aiCost: aiResult.cost,
+      aiCost: aiResult.cost?.totalCost || 0.001,
       nextSteps: [
         "Review the AI reasoning for schedule decisions",
         "Adjust assignments if needed",

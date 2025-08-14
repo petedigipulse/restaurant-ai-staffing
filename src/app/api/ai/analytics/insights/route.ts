@@ -47,7 +47,7 @@ export async function POST(req: Request) {
       message: "AI-powered insights generated successfully! 🎉",
       insights: aiResult.data,
       reasoning: aiResult.reasoning,
-      aiCost: aiResult.cost,
+      aiCost: aiResult.cost?.totalCost || 0.001,
       metadata: {
         organizationId,
         timeRange: timeRange || '30d',

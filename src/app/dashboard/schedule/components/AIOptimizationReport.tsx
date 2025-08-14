@@ -172,7 +172,16 @@ export default function AIOptimizationReport({ report, onClose }: AIOptimization
                   AI processing cost for this optimization
                 </div>
                 <div className="text-lg font-semibold text-gray-900">
-                  ${(report.aiCost || 0).toFixed(6)}
+                  ${(() => {
+                    const cost = report.aiCost;
+                    if (typeof cost === 'number' && !isNaN(cost)) {
+                      return cost.toFixed(6);
+                    } else if (typeof cost === 'string') {
+                      const parsedCost = parseFloat(cost);
+                      return isNaN(parsedCost) ? '0.000000' : parsedCost.toFixed(6);
+                    }
+                    return '0.000000';
+                  })()}
                 </div>
               </div>
             </CardContent>
