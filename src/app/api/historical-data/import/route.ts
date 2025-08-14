@@ -50,33 +50,44 @@ export async function POST(request: NextRequest) {
           // Fetch weather data for this date
           const weatherData = await fetchWeatherData(date, time);
           
-          historicalData.push({
+          // Clean and validate the data to prevent crossover
+          const cleanData = {
             organization_id: organizationId,
             date: date,
             time: time || '12:00:00',
             total_sales: parseFloat(rowData.total_sales || rowData['Total Sales'] || rowData['TOTAL_SALES'] || '0'),
             customer_count: parseInt(rowData.customer_count || rowData['Customer Count'] || rowData['CUSTOMER_COUNT'] || '0'),
-            weather_conditions: weatherData.conditions || 'Unknown',
-            special_events: rowData.special_events || rowData['Special Events'] || rowData['SPECIAL_EVENTS'] || '',
-            notes: rowData.notes || rowData.Notes || rowData.NOTES || '',
+            weather_conditions: weatherData.conditions || null,
+            special_events: (rowData.special_events || rowData['Special Events'] || rowData['SPECIAL_EVENTS'] || '').trim() || null,
+            notes: (rowData.notes || rowData['Notes'] || rowData['NOTES'] || '').trim() || null,
             station_breakdown: {},
             created_at: new Date().toISOString()
-          });
+          };
+
+          // Only add if we have valid data
+          if (cleanData.date && (cleanData.total_sales > 0 || cleanData.customer_count > 0)) {
+            historicalData.push(cleanData);
+          }
         } catch (error) {
           console.error('Error fetching weather data for date:', date, error);
           // Continue without weather data
-          historicalData.push({
+          const cleanData = {
             organization_id: organizationId,
             date: date,
             time: time || '12:00:00',
             total_sales: parseFloat(rowData.total_sales || rowData['Total Sales'] || rowData['TOTAL_SALES'] || '0'),
             customer_count: parseInt(rowData.customer_count || rowData['Customer Count'] || rowData['CUSTOMER_COUNT'] || '0'),
-            weather_conditions: 'Unknown',
-            special_events: rowData.special_events || rowData['Special Events'] || rowData['SPECIAL_EVENTS'] || '',
-            notes: rowData.notes || rowData.Notes || rowData.NOTES || '',
+            weather_conditions: null,
+            special_events: (rowData.special_events || rowData['Special Events'] || rowData['SPECIAL_EVENTS'] || '').trim() || null,
+            notes: (rowData.notes || rowData['Notes'] || rowData['NOTES'] || '').trim() || null,
             station_breakdown: {},
             created_at: new Date().toISOString()
-          });
+          };
+
+          // Only add if we have valid data
+          if (cleanData.date && (cleanData.total_sales > 0 || cleanData.customer_count > 0)) {
+            historicalData.push(cleanData);
+          }
         }
       }
     }

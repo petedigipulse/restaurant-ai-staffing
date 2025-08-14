@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import { DatabaseService } from '@/lib/services/database';
-import { Button } from '@/components/ui/button';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { DatabaseService } from '@/lib/services/database';
 
 interface HistoricalDataPoint {
   id: string;
+  organization_id: string;
   date: string;
   time: string;
   total_sales: number;
@@ -15,58 +15,99 @@ interface HistoricalDataPoint {
   weather_conditions: string;
   special_events: string;
   notes: string;
+  station_breakdown: any;
+  created_at: string;
+}
+
+interface ImportGroup {
+  id: string;
+  importDate: string;
+  dataPoints: HistoricalDataPoint[];
+  totalSales: number;
+  totalCustomers: number;
+  dateRange: string;
+  count: number;
+}
+
+interface Message {
+  type: 'success' | 'error';
+  text: string;
 }
 
 export default function HistoricalDataPage() {
-  const { data: session } = useSession();
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [historicalData, setHistoricalData] = useState<HistoricalDataPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [message, setMessage] = useState<Message | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [expandedImports, setExpandedImports] = useState<Set<string>>(new Set());
+  const [importGroups, setImportGroups] = useState<ImportGroup[]>([]);
 
   useEffect(() => {
-    const loadHistoricalData = async () => {
-      if (!session?.user?.email) return;
+    loadData();
+  }, []);
 
-      try {
-        const orgId = await DatabaseService.getCurrentUserOrganizationId();
-        if (orgId) {
-          setOrganizationId(orgId);
-          
-          // Load historical data
-          const data = await DatabaseService.getHistoricalDataForAnalytics(orgId);
-          setHistoricalData(data || []);
-        }
-      } catch (error) {
-        console.error('Error loading historical data:', error);
-        setMessage({ type: 'error', text: 'Failed to load historical data' });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadHistoricalData();
-  }, [session]);
-
-  const handleDeleteDataPoint = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this data point? This action cannot be undone.')) {
-      return;
-    }
-
-    setIsDeleting(id);
+  const loadData = async () => {
     try {
-      // Note: You'll need to implement deleteHistoricalDataPoint in DatabaseService
-      // For now, we'll just remove it from the local state
-      setHistoricalData(prev => prev.filter(item => item.id !== id));
-      setMessage({ type: 'success', text: 'Data point deleted successfully' });
+      const orgId = await DatabaseService.getCurrentUserOrganizationId();
+      setOrganizationId(orgId);
+
+      if (orgId) {
+        const data = await DatabaseService.getHistoricalDataForAnalytics(orgId);
+        setHistoricalData(data || []);
+        groupImportsByDate(data || []);
+      }
     } catch (error) {
-      console.error('Error deleting data point:', error);
-      setMessage({ type: 'error', text: 'Failed to delete data point' });
+      console.error('Error loading data:', error);
+      setMessage({ type: 'error', text: 'Failed to load historical data' });
     } finally {
-      setIsDeleting(null);
+      setIsLoading(false);
     }
+  };
+
+  const groupImportsByDate = (data: HistoricalDataPoint[]) => {
+    // Group data by import date (created_at date)
+    const groups = new Map<string, HistoricalDataPoint[]>();
+    
+    data.forEach(point => {
+      const importDate = new Date(point.created_at).toDateString();
+      if (!groups.has(importDate)) {
+        groups.set(importDate, []);
+      }
+      groups.get(importDate)!.push(point);
+    });
+
+    // Convert to ImportGroup array
+    const importGroupsArray: ImportGroup[] = Array.from(groups.entries()).map(([date, points]) => {
+      const sortedPoints = points.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      const totalSales = points.reduce((sum, point) => sum + (point.total_sales || 0), 0);
+      const totalCustomers = points.reduce((sum, point) => sum + (point.customer_count || 0), 0);
+      const dateRange = `${sortedPoints[0]?.date} to ${sortedPoints[sortedPoints.length - 1]?.date}`;
+      
+      return {
+        id: date,
+        importDate: date,
+        dataPoints: sortedPoints,
+        totalSales,
+        totalCustomers,
+        dateRange,
+        count: points.length
+      };
+    });
+
+    // Sort by import date (newest first)
+    importGroupsArray.sort((a, b) => new Date(b.importDate).getTime() - new Date(a.importDate).getTime());
+    setImportGroups(importGroupsArray);
+  };
+
+  const toggleImportExpansion = (importId: string) => {
+    const newExpanded = new Set(expandedImports);
+    if (newExpanded.has(importId)) {
+      newExpanded.delete(importId);
+    } else {
+      newExpanded.add(importId);
+    }
+    setExpandedImports(newExpanded);
   };
 
   const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,9 +151,10 @@ export default function HistoricalDataPage() {
         
         setMessage({ type: 'success', text: messageText });
         
-        // Reload historical data
+        // Reload historical data and regroup imports
         const data = await DatabaseService.getHistoricalDataForAnalytics(organizationId!);
         setHistoricalData(data || []);
+        groupImportsByDate(data || []);
       } else {
         const error = await response.json();
         console.error('❌ Import failed:', error);
@@ -230,174 +272,146 @@ export default function HistoricalDataPage() {
           </div>
         )}
 
-        {/* Data Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="text-3xl mr-4">📊</div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Data Points</p>
-                <p className="text-2xl font-bold text-gray-900">{historicalData.length}</p>
+        {/* Import Groups */}
+        <div className="space-y-6">
+          {importGroups.map((importGroup) => (
+            <div key={importGroup.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              {/* Import Group Header */}
+              <div 
+                className="p-6 cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => toggleImportExpansion(importGroup.id)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="text-2xl">📊</div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Import from {formatDate(importGroup.importDate)}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {importGroup.count} data points • {importGroup.dateRange}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    {/* Quick Insights */}
+                    <div className="flex space-x-6 text-sm">
+                      <div className="text-center">
+                        <p className="text-gray-500">Total Sales</p>
+                        <p className="font-semibold text-green-600">{formatCurrency(importGroup.totalSales)}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-gray-500">Customers</p>
+                        <p className="font-semibold text-blue-600">{importGroup.totalCustomers}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-gray-500">Avg Sale</p>
+                        <p className="font-semibold text-purple-600">
+                          {formatCurrency(importGroup.totalSales / importGroup.count)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-gray-400">
+                      {expandedImports.has(importGroup.id) ? '▼' : '▶'}
+                    </div>
+                  </div>
+                </div>
               </div>
+
+              {/* Expandable Data Points */}
+              {expandedImports.has(importGroup.id) && (
+                <div className="border-t border-gray-200 bg-gray-50">
+                  <div className="p-6">
+                    <h4 className="text-md font-medium text-gray-900 mb-4">Data Points</h4>
+                    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Date
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Time
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Sales
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Customers
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Weather
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Special Events
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Notes
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {importGroup.dataPoints.map((point) => (
+                            <tr key={point.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {formatDate(point.date)}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                {point.time}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-green-600">
+                                {formatCurrency(point.total_sales)}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                {point.customer_count}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                {point.weather_conditions || '-'}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                {point.special_events || '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">
+                                {point.notes || '-'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-          
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="text-3xl mr-4">💰</div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Sales</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(historicalData.reduce((sum, item) => sum + (item.total_sales || 0), 0))}
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="text-3xl mr-4">👥</div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Customers</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {historicalData.reduce((sum, item) => sum + (item.customer_count || 0), 0)}
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="text-3xl mr-4">📅</div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Date Range</p>
-                <p className="text-lg font-bold text-gray-900">
-                  {historicalData.length > 0 ? (
-                    <>
-                      {formatDate(historicalData[0].date)} - {formatDate(historicalData[historicalData.length - 1].date)}
-                    </>
-                  ) : 'No data'}
-                </p>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
 
-        {/* Historical Data Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Sales Data</h2>
-          </div>
-          
-          {historicalData.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Time
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Sales
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Customers
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Weather
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Special Events
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Notes
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {historicalData.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {formatDate(item.date)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.time}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">
-                        {formatCurrency(item.total_sales)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.customer_count}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.weather_conditions || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.special_events || '-'}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-                        {item.notes || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => handleDeleteDataPoint(item.id)}
-                          disabled={isDeleting === item.id}
-                          className="text-red-600 hover:text-red-900 disabled:opacity-50"
-                        >
-                          {isDeleting === item.id ? 'Deleting...' : 'Delete'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <div className="text-6xl mb-4">📊</div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Historical Data Found</h3>
-              <p className="text-gray-600 mb-6">You haven't added any historical sales data yet.</p>
+        {/* Empty State */}
+        {importGroups.length === 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+            <div className="text-6xl mb-4">📊</div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Historical Data Yet</h3>
+            <p className="text-gray-600 mb-6">
+              Start by uploading your sales data via CSV or adding data through the onboarding process.
+            </p>
+            <div className="flex justify-center space-x-3">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={(e) => handleCSVUpload(e)}
+                className="hidden"
+                id="csv-upload-empty"
+              />
+              <label htmlFor="csv-upload-empty">
+                <Button variant="outline" className="px-4 py-2 cursor-pointer">
+                  📁 Upload CSV
+                </Button>
+              </label>
               <Link href="/onboarding">
-                <Button className="bg-blue-600 hover:bg-blue-700">
-                  📥 Add Historical Data
+                <Button className="px-4 py-2 bg-blue-600 hover:bg-blue-700">
+                  📥 Add Data
                 </Button>
               </Link>
-            </div>
-          )}
-        </div>
-
-        {/* Data Insights */}
-        {historicalData.length > 0 && (
-          <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Insights</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="text-center">
-                <p className="text-sm text-gray-600 mb-1">Average Daily Sales</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {formatCurrency(historicalData.reduce((sum, item) => sum + (item.total_sales || 0), 0) / historicalData.length)}
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm text-gray-600 mb-1">Average Customers per Day</p>
-                <p className="text-2xl font-bold text-blue-600">
-                  {Math.round(historicalData.reduce((sum, item) => sum + (item.customer_count || 0), 0) / historicalData.length)}
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm text-gray-600 mb-1">Average Sale per Customer</p>
-                <p className="text-2xl font-bold text-purple-600">
-                  {formatCurrency(
-                    historicalData.reduce((sum, item) => sum + (item.total_sales || 0), 0) / 
-                    historicalData.reduce((sum, item) => sum + (item.customer_count || 0), 0)
-                  )}
-                </p>
-              </div>
             </div>
           </div>
         )}
