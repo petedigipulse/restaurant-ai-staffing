@@ -97,9 +97,11 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        message: `Successfully imported ${historicalData.length} data points`,
+        message: result.message || `Successfully imported ${historicalData.length} data points`,
         importedCount: historicalData.length,
-        data: result
+        data: result.data,
+        conflicts: result.conflicts,
+        hasConflicts: result.conflicts?.hasConflicts || false
       });
     } catch (dbError: any) {
       console.error('Error saving historical data:', dbError);

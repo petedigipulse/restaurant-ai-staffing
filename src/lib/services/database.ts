@@ -511,6 +511,9 @@ export class DatabaseService {
         throw new Error('Invalid historical data: must be a non-empty array');
       }
 
+      // Check for potential conflicts before import
+      const conflictCheck = await this.checkHistoricalDataConflicts(organizationId, historicalData);
+      
       // Validate each data point has required fields
       const validatedData = historicalData.map((item, index) => {
         if (!item.organization_id || !item.date) {
@@ -523,22 +526,72 @@ export class DatabaseService {
         };
       });
 
-      // Insert the historical data
+      // Use upsert to handle duplicate key violations
+      // This will update existing records or insert new ones
       const { data, error } = await supabase
         .from('historical_sales_data')
-        .insert(validatedData)
+        .upsert(validatedData, {
+          onConflict: 'organization_id,date,time',
+          ignoreDuplicates: false
+        })
         .select();
 
       if (error) {
-        console.error('Database error inserting historical data:', error);
+        console.error('Database error upserting historical data:', error);
         throw new Error(`Failed to save historical data: ${error.message}`);
       }
 
-      console.log(`✅ Successfully imported ${validatedData.length} historical data points`);
-      return data;
+      console.log(`✅ Successfully imported ${validatedData.length} historical data points (with upsert)`);
+      
+      // Return result with conflict information
+      return {
+        data,
+        conflicts: conflictCheck,
+        message: conflictCheck.hasConflicts 
+          ? `Imported ${validatedData.length} data points. ${conflictCheck.conflictCount} existing records were updated.`
+          : `Successfully imported ${validatedData.length} new data points.`
+      };
     } catch (error) {
       console.error('Error importing historical data from CSV:', error);
       throw error;
+    }
+  }
+
+  // Check for potential conflicts in historical data
+  private static async checkHistoricalDataConflicts(organizationId: string, historicalData: any[]) {
+    try {
+      const dateTimePairs = historicalData.map(item => ({
+        date: item.date,
+        time: item.time || '12:00:00'
+      }));
+
+      // Check which records already exist
+      const { data: existingRecords, error } = await supabase
+        .from('historical_sales_data')
+        .select('date, time')
+        .eq('organization_id', organizationId)
+        .in('date', dateTimePairs.map(p => p.date))
+        .in('time', dateTimePairs.map(p => p.time));
+
+      if (error) {
+        console.warn('Could not check for conflicts:', error);
+        return { hasConflicts: false, conflictCount: 0, conflicts: [] };
+      }
+
+      const conflicts = dateTimePairs.filter(pair => 
+        existingRecords?.some(existing => 
+          existing.date === pair.date && existing.time === pair.time
+        )
+      );
+
+      return {
+        hasConflicts: conflicts.length > 0,
+        conflictCount: conflicts.length,
+        conflicts
+      };
+    } catch (error) {
+      console.warn('Error checking for conflicts:', error);
+      return { hasConflicts: false, conflictCount: 0, conflicts: [] };
     }
   }
 

@@ -100,7 +100,15 @@ export default function HistoricalDataPage() {
       if (response.ok) {
         const result = await response.json();
         console.log('✅ Import successful:', result);
-        setMessage({ type: 'success', text: `Successfully imported ${result.importedCount} data points!` });
+        
+        let messageText = result.message || `Successfully imported ${result.importedCount} data points!`;
+        
+        // Add conflict information if there were conflicts
+        if (result.hasConflicts && result.conflicts) {
+          messageText += ` ${result.conflicts.conflictCount} existing records were updated.`;
+        }
+        
+        setMessage({ type: 'success', text: messageText });
         
         // Reload historical data
         const data = await DatabaseService.getHistoricalDataForAnalytics(organizationId!);
