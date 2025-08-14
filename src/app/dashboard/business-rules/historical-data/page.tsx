@@ -24,6 +24,7 @@ export default function HistoricalDataPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     const loadHistoricalData = async () => {
@@ -65,6 +66,44 @@ export default function HistoricalDataPage() {
       setMessage({ type: 'error', text: 'Failed to delete data point' });
     } finally {
       setIsDeleting(null);
+    }
+  };
+
+  const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setMessage(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('csv', file);
+      formData.append('organizationId', organizationId || '');
+
+      const response = await fetch('/api/historical-data/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setMessage({ type: 'success', text: `Successfully imported ${result.importedCount} data points!` });
+        
+        // Reload historical data
+        const data = await DatabaseService.getHistoricalDataForAnalytics(organizationId!);
+        setHistoricalData(data || []);
+      } else {
+        const error = await response.json();
+        setMessage({ type: 'error', text: `Import failed: ${error.error}` });
+      }
+    } catch (error) {
+      console.error('Error uploading CSV:', error);
+      setMessage({ type: 'error', text: 'Failed to upload CSV file' });
+    } finally {
+      setIsUploading(false);
+      // Reset file input
+      event.target.value = '';
     }
   };
 
@@ -110,6 +149,18 @@ export default function HistoricalDataPage() {
               <p className="text-gray-600 mt-2">View and manage your sales history and performance data</p>
             </div>
             <div className="flex space-x-3">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={(e) => handleCSVUpload(e)}
+                className="hidden"
+                id="csv-upload"
+              />
+              <label htmlFor="csv-upload">
+                <Button variant="outline" className="px-4 py-2 cursor-pointer" disabled={isUploading}>
+                  {isUploading ? '📁 Uploading...' : '📁 Upload CSV'}
+                </Button>
+              </label>
               <Link href="/onboarding">
                 <Button variant="outline" className="px-4 py-2">
                   📥 Add More Data

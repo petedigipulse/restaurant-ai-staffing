@@ -15,7 +15,12 @@ interface BusinessRules {
   min_staffing_requirements?: any;
   labor_cost_management?: any;
   shift_constraints?: any;
-  additional_policies?: any;
+  additional_policies?: {
+    staffing_guidelines?: string;
+    cost_optimization?: string;
+    compliance_requirements?: string;
+    custom_policies?: string[];
+  };
 }
 
 export default function BusinessPoliciesPage() {
@@ -25,6 +30,7 @@ export default function BusinessPoliciesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [newCustomPolicy, setNewCustomPolicy] = useState('');
 
   useEffect(() => {
     const loadBusinessRules = async () => {
@@ -73,6 +79,53 @@ export default function BusinessPoliciesPage() {
 
   const handleBusinessRulesChange = (field: keyof BusinessRules, value: any) => {
     setBusinessRules(prev => prev ? { ...prev, [field]: value } : null);
+  };
+
+  const handleCustomPolicyChange = (index: number, value: string) => {
+    setBusinessRules(prev => {
+      if (!prev) return null;
+      const customPolicies = [...(prev.additional_policies?.custom_policies || [])];
+      customPolicies[index] = value;
+      return {
+        ...prev,
+        additional_policies: {
+          ...prev.additional_policies,
+          custom_policies: customPolicies
+        }
+      };
+    });
+  };
+
+  const addCustomPolicy = () => {
+    if (!newCustomPolicy.trim()) return;
+    
+    setBusinessRules(prev => {
+      if (!prev) return null;
+      const customPolicies = [...(prev.additional_policies?.custom_policies || []), newCustomPolicy.trim()];
+      return {
+        ...prev,
+        additional_policies: {
+          ...prev.additional_policies,
+          custom_policies: customPolicies
+        }
+      };
+    });
+    setNewCustomPolicy('');
+  };
+
+  const removeCustomPolicy = (index: number) => {
+    setBusinessRules(prev => {
+      if (!prev) return null;
+      const customPolicies = [...(prev.additional_policies?.custom_policies || [])];
+      customPolicies.splice(index, 1);
+      return {
+        ...prev,
+        additional_policies: {
+          ...prev.additional_policies,
+          custom_policies: customPolicies
+        }
+      };
+    });
   };
 
   const handleSave = async () => {
@@ -302,6 +355,54 @@ export default function BusinessPoliciesPage() {
                 <li>• Maintain accurate time and attendance records</li>
                 <li>• Comply with minimum wage requirements</li>
               </ul>
+            </div>
+
+            {/* Custom Policies */}
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h3 className="font-medium text-gray-900 mb-4">Custom Policies</h3>
+              
+              {/* Add New Policy */}
+              <div className="flex gap-2 mb-4">
+                <input
+                  type="text"
+                  value={newCustomPolicy}
+                  onChange={(e) => setNewCustomPolicy(e.target.value)}
+                  placeholder="Enter a new custom policy..."
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  onKeyPress={(e) => e.key === 'Enter' && addCustomPolicy()}
+                />
+                <Button
+                  onClick={addCustomPolicy}
+                  disabled={!newCustomPolicy.trim()}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                >
+                  Add
+                </Button>
+              </div>
+
+              {/* Existing Custom Policies */}
+              {businessRules.additional_policies?.custom_policies && businessRules.additional_policies.custom_policies.length > 0 ? (
+                <div className="space-y-2">
+                  {businessRules.additional_policies.custom_policies.map((policy, index) => (
+                    <div key={index} className="flex items-center gap-2 p-2 bg-white rounded border">
+                      <input
+                        type="text"
+                        value={policy}
+                        onChange={(e) => handleCustomPolicyChange(index, e.target.value)}
+                        className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                      />
+                      <button
+                        onClick={() => removeCustomPolicy(index)}
+                        className="px-2 py-1 text-red-600 hover:text-red-800 text-sm"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 italic">No custom policies added yet.</p>
+              )}
             </div>
           </div>
         </div>
