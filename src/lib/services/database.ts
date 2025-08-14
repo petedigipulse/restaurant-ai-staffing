@@ -690,6 +690,23 @@ export class DatabaseService {
     }
   }
 
+  // Get ALL historical data for an organization (no date filtering)
+  static async getAllHistoricalData(organizationId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('historical_sales_data')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw new Error(`Failed to fetch all historical data: ${error.message}`);
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching all historical data:', error);
+      throw error;
+    }
+  }
+
   // Get current user's organization ID
   static async getCurrentUserOrganizationId(): Promise<string | null> {
     try {

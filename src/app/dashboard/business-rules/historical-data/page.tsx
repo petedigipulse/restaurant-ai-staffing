@@ -55,7 +55,7 @@ export default function HistoricalDataPage() {
 
       if (orgId) {
         console.log('🏢 Organization ID:', orgId);
-        const data = await DatabaseService.getHistoricalDataForAnalytics(orgId);
+        const data = await DatabaseService.getAllHistoricalData(orgId);
         console.log('📊 Loaded historical data:', data?.length, 'records');
         setHistoricalData(data || []);
         
@@ -180,14 +180,37 @@ export default function HistoricalDataPage() {
         // Reload historical data and regroup imports
         try {
           console.log('🔄 Reloading data after import...');
-          const data = await DatabaseService.getHistoricalDataForAnalytics(organizationId!);
+          
+          // Force a small delay to ensure database is updated
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          const data = await DatabaseService.getAllHistoricalData(organizationId!);
           console.log('📊 Reloaded data:', data?.length, 'records');
+          
+          // Log some sample data to see what we got
+          if (data && data.length > 0) {
+            console.log('📅 Sample data points:', data.slice(0, 3).map(d => ({
+              id: d.id,
+              date: d.date,
+              sales: d.total_sales,
+              customers: d.customer_count,
+              created: d.created_at
+            })));
+          }
+          
           setHistoricalData(data || []);
           
           // Regroup the data
           console.log('🔄 Regrouping imports...');
           groupImportsByDate(data || []);
           console.log('✅ Data reloaded and regrouped successfully');
+          
+          // Force a re-render
+          setTimeout(() => {
+            console.log('🔄 Forcing re-render...');
+            setHistoricalData(prev => [...prev]);
+          }, 500);
+          
         } catch (error) {
           console.error('❌ Error reloading data:', error);
           setMessage({ type: 'error', text: 'Data imported but failed to refresh display. Please refresh the page.' });
@@ -313,6 +336,19 @@ export default function HistoricalDataPage() {
                     className="text-sm px-3 py-1"
                   >
                     🔄 Force Refresh
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      console.log('🔍 Debug: Current state');
+                      console.log('📊 Historical data:', historicalData.length, 'records');
+                      console.log('📦 Import groups:', importGroups.length, 'groups');
+                      console.log('🏢 Organization ID:', organizationId);
+                      console.log('📅 Sample data:', historicalData.slice(0, 3));
+                    }}
+                    className="text-sm px-3 py-1"
+                  >
+                    🔍 Debug
                   </Button>
                 </div>
               )}
