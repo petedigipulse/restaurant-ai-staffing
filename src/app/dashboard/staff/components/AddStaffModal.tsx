@@ -55,12 +55,16 @@ export default function AddStaffModal({ organizationId, onClose, onSuccess, edit
 
     try {
       const payload = {
-        ...formData,
-        organization_id: organizationId,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        email: formData.email,
+        role: formData.role,
         hourly_wage: parseFloat(formData.hourly_wage) || 0,
         guaranteed_hours: parseInt(formData.guaranteed_hours) || 0,
+        employment_type: formData.employment_type,
         performance_score: parseInt(formData.performance_score) || 80,
         stations: formData.stations.split(',').map(s => s.trim()).filter(Boolean),
+        start_date: formData.start_date,
         availability: {
           monday: { available: true, startTime: '09:00', endTime: '17:00', preferred: false },
           tuesday: { available: true, startTime: '09:00', endTime: '17:00', preferred: false },
@@ -87,6 +91,8 @@ export default function AddStaffModal({ organizationId, onClose, onSuccess, edit
         },
         body: JSON.stringify(payload)
       });
+
+      console.log('📤 API Request - URL:', url, 'Method:', method, 'Payload:', payload);
 
       if (response.ok) {
         onSuccess();
