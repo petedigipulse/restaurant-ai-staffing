@@ -126,6 +126,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       Billing
                     </Link>
                     <Link
+                      href="/dashboard/edit-setup" 
+                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Edit Setup
+                    </Link>
+                    <Link
                       href="/dashboard" 
                       className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                     >

@@ -20,6 +20,8 @@ export default function StaffPage() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
+  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
 
   // Load staff data from database
   useEffect(() => {
@@ -143,6 +145,48 @@ export default function StaffPage() {
     if (organizationId) {
       const staff = await DatabaseService.getStaffMembers(organizationId);
       setStaffMembers(staff || []);
+    }
+  };
+
+  const handleEditStaff = (staff: StaffMember) => {
+    setEditingStaff(staff);
+    setModalMode('edit');
+    setShowAddStaffModal(true);
+  };
+
+  const handleAddNewStaff = () => {
+    setEditingStaff(null);
+    setModalMode('add');
+    setShowAddStaffModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowAddStaffModal(false);
+    setEditingStaff(null);
+    setModalMode('add');
+  };
+
+  const handleDeleteStaff = async (staffId: string) => {
+    if (!confirm('Are you sure you want to delete this staff member? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/staff/${staffId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // Remove the staff member from the local state
+        setStaffMembers(prev => prev.filter(staff => staff.id !== staffId));
+        console.log('✅ Staff member deleted successfully');
+      } else {
+        const error = await response.json();
+        alert(`Error deleting staff member: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting staff member:', error);
+      alert('Failed to delete staff member. Please try again.');
     }
   };
 
@@ -404,6 +448,22 @@ export default function StaffPage() {
                   <div>{staff.contact_info?.phone || 'No phone'}</div>
                 </div>
               </div>
+
+              {/* Actions */}
+              <div className="flex justify-end space-x-2">
+                <button
+                  onClick={() => handleEditStaff(staff)}
+                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDeleteStaff(staff.id)}
+                  className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -431,8 +491,10 @@ export default function StaffPage() {
       {showAddStaffModal && (
         <AddStaffModal
           organizationId={organizationId}
-          onClose={() => setShowAddStaffModal(false)}
+          onClose={handleCloseModal}
           onSuccess={handleStaffAdded}
+          editStaff={editingStaff}
+          mode={modalMode}
         />
       )}
 
