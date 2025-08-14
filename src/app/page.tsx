@@ -1,19 +1,17 @@
-import Link from "next/link";
-import Image from "next/image";
-import { LoginButton } from "@/components/LoginButton";
+import { LoginButton } from '@/components/LoginButton';
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       {/* Header */}
-      <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
+      <header className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-6">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-                <span className="text-white font-bold text-lg">AI</span>
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-green-600 rounded-lg flex items-center justify-center">
+                <span className="text-white text-xl font-bold">R</span>
               </div>
-              <h1 className="text-2xl font-bold text-gray-900">Staffing Optimization AI</h1>
+              <h1 className="text-2xl font-bold text-gray-900">RestaurantAI Staffing</h1>
             </div>
             <div className="flex items-center space-x-4">
               <LoginButton />
@@ -23,165 +21,324 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <section className="py-20 px-6">
+      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-            Smarter Staffing.
-            <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-              Smoother Service.
+          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
+            AI-Powered Staffing
+            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-green-600">
+              with Performance Intelligence
             </span>
           </h1>
-          <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed mb-8">
-            Designed for restaurants, hotels, and the wider hospitality industry, our AI-powered dashboard creates efficient schedules by factoring in key data points like weather forecasts, HR systems, cash flow, and historical sales trends. The result: reduced costs, improved service, and better staff satisfaction.
+          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+            Optimize your restaurant staffing with AI-driven insights. See performance across stations, 
+            build A-Team vs B-Team rosters, and make data-driven decisions that boost efficiency and reduce costs.
           </p>
-          
-          {/* Authentication Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <a
               href="/signup"
-              className="px-8 py-4 bg-purple-600 text-white text-xl font-semibold rounded-lg hover:bg-purple-700 transition-colors shadow-lg hover:shadow-xl"
+              className="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-xl text-white bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
             >
               Get Started - Free
-            </Link>
-            <Link
+            </a>
+            <a
               href="/login"
-              className="px-8 py-4 border-2 border-purple-600 text-purple-600 text-xl font-semibold rounded-lg hover:bg-purple-50 transition-colors"
+              className="inline-flex items-center px-8 py-4 border-2 border-gray-300 text-lg font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
             >
               Sign In
-            </Link>
+            </a>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-20 px-6 bg-white">
+      {/* Features Grid */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-3 gap-12">
-            {/* Feature 1 */}
-            <div className="text-center">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Strategic Staffing Intelligence
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Go beyond basic scheduling. Get performance analytics, team optimization, and cost-benefit insights 
+              that transform how you manage your restaurant staff.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {/* AI Schedule Generation */}
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-8 border border-blue-200">
+              <div className="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center mb-6">
+                <span className="text-white text-2xl">🤖</span>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">AI-Driven Scheduling</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Leverages sales history, weather predictions, HR data, and cash flow trends to create optimized, balanced schedules.
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">AI Schedule Generation</h3>
+              <p className="text-gray-700 mb-6">
+                Generate optimized schedules in seconds using AI that considers staff performance, 
+                availability, and business rules.
               </p>
+              <ul className="text-sm text-gray-600 space-y-2">
+                <li>• Weather-aware scheduling</li>
+                <li>• Performance-based optimization</li>
+                <li>• Conflict detection & resolution</li>
+              </ul>
             </div>
 
-            {/* Feature 2 */}
-            <div className="text-center">
-              <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <svg className="w-10 h-10 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
+            {/* Performance Analytics */}
+            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-8 border border-green-200">
+              <div className="w-16 h-16 bg-green-600 rounded-xl flex items-center justify-center mb-6">
+                <span className="text-white text-2xl">📊</span>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Real-Time Insights</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Track labor costs, coverage, and staff utilization, and adjust quickly to operational changes.
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Performance Analytics</h3>
+              <p className="text-gray-700 mb-6">
+                Track staff performance across all stations. Identify training needs and build 
+                high-performing teams with data-driven insights.
               </p>
+              <ul className="text-sm text-gray-600 space-y-2">
+                <li>• Multi-station performance tracking</li>
+                <li>• Training needs identification</li>
+                <li>• Performance trend analysis</li>
+              </ul>
             </div>
 
-            {/* Feature 3 */}
-            <div className="text-center">
-              <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-green-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                </svg>
+            {/* A-Team vs B-Team Rostering */}
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-8 border border-purple-200">
+              <div className="w-16 h-16 bg-purple-600 rounded-xl flex items-center justify-center mb-6">
+                <span className="text-white text-2xl">🏆</span>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Cost Savings Focus</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Identify overtime risks, prevent overstaffing, and align skills with demand to maximize profitability.
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Strategic Team Building</h3>
+              <p className="text-gray-700 mb-6">
+                Build A-Team rosters for busy shifts and B-Team for cost optimization. 
+                See the cost-benefit analysis for every team composition.
               </p>
+              <ul className="text-sm text-gray-600 space-y-2">
+                <li>• Performance-based team tiers</li>
+                <li>• Cost-benefit analysis</li>
+                <li>• Strategic rostering decisions</li>
+              </ul>
+            </div>
+
+            {/* Cost Optimization */}
+            <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-2xl p-8 border border-yellow-200">
+              <div className="w-16 h-16 bg-yellow-600 rounded-xl flex items-center justify-center mb-6">
+                <span className="text-white text-2xl">💰</span>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Cost Optimization</h3>
+              <p className="text-gray-700 mb-6">
+                Optimize labor costs while maintaining service quality. Get real-time insights 
+                into cost per performance and ROI impact.
+              </p>
+              <ul className="text-sm text-gray-600 space-y-2">
+                <li>• Labor cost analysis</li>
+                <li>• Performance vs. cost metrics</li>
+                <li>• ROI optimization insights</li>
+              </ul>
+            </div>
+
+            {/* Multi-Station Management */}
+            <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-8 border border-red-200">
+              <div className="w-16 h-16 bg-red-600 rounded-xl flex items-center justify-center mb-6">
+                <span className="text-white text-2xl">🎯</span>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Multi-Station Management</h3>
+              <p className="text-gray-700 mb-6">
+                Manage staff across Kitchen, Front of House, Bar, and Host stations. 
+                See who excels where and optimize assignments.
+              </p>
+              <ul className="text-sm text-gray-600 space-y-2">
+                <li>• Cross-station performance</li>
+                <li>• Skill gap identification</li>
+                <li>• Optimal staff placement</li>
+              </ul>
+            </div>
+
+            {/* Historical Data Insights */}
+            <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-2xl p-8 border border-indigo-200">
+              <div className="w-16 h-16 bg-indigo-600 rounded-xl flex items-center justify-center mb-6">
+                <span className="text-white text-2xl">📈</span>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Historical Insights</h3>
+              <p className="text-gray-700 mb-6">
+                Learn from past performance data. Identify patterns, optimize for busy periods, 
+                and make informed staffing decisions.
+              </p>
+              <ul className="text-sm text-gray-600 space-y-2">
+                <li>• Sales pattern analysis</li>
+                <li>• Seasonal staffing optimization</li>
+                <li>• Performance trend tracking</li>
+              </ul>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Food Waste Section */}
-      <section className="py-20 px-6">
+      {/* Performance Analytics Showcase */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              See Your Team's Performance
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Get instant insights into who your top performers are, where training is needed, 
+              and how to optimize your team composition for maximum efficiency.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-4xl font-bold text-gray-900 mb-6">
-                Reduce Food Waste & Optimize Ordering
-              </h2>
-              <p className="text-lg text-gray-600 leading-relaxed">
-                By combining demand forecasts with staffing and service patterns, the AI also supports smarter stock ordering. This helps minimize food waste, reduce spoilage, and ensure you're purchasing exactly what's needed for upcoming service periods.
-              </p>
-            </div>
-            <div className="relative">
-              <div className="w-full h-80 bg-gradient-to-br from-orange-100 to-red-100 rounded-2xl flex items-center justify-center">
-                <div className="text-center">
-                  <svg className="w-24 h-24 text-orange-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                  </svg>
-                  <p className="text-orange-600 font-medium">Smart Inventory Management</p>
+              <h3 className="text-3xl font-bold text-gray-900 mb-6">
+                A-Team vs B-Team Analysis
+              </h3>
+              <div className="space-y-6">
+                <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="w-4 h-4 bg-green-500 rounded-full"></div>
+                    <h4 className="text-xl font-semibold text-gray-900">A-Team (Top 30%)</h4>
+                  </div>
+                  <p className="text-gray-600 mb-3">
+                    Your superstar performers for high-demand shifts and special events
+                  </p>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-500">Avg Performance:</span>
+                      <span className="block font-semibold text-green-600">85%+</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Best For:</span>
+                      <span className="block font-semibold text-green-600">Busy Shifts</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Chains & Independents Section */}
-      <section className="py-20 px-6 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div className="relative order-2 lg:order-1">
-              <div className="w-full h-80 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl flex items-center justify-center">
-                <div className="text-center">
-                  <svg className="w-24 h-24 text-blue-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                  <p className="text-blue-600 font-medium">Multi-Location Support</p>
+                <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
+                    <h4 className="text-xl font-semibold text-gray-900">B-Team (Middle 40%)</h4>
+                  </div>
+                  <p className="text-gray-600 mb-3">
+                    Cost-optimized team for regular shifts and training opportunities
+                  </p>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-500">Avg Performance:</span>
+                      <span className="block font-semibold text-blue-600">70-84%</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Best For:</span>
+                      <span className="block font-semibold text-blue-600">Cost Optimization</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="order-1 lg:order-2">
-              <h2 className="text-4xl font-bold text-gray-900 mb-6">
-                For Chains & Independents
-              </h2>
-              <p className="text-lg text-gray-600 leading-relaxed">
-                Whether you manage one venue or multiple locations, our platform adapts to your business size. Standardize processes across sites or fine-tune them for individual location needs – all while ensuring measurable cost savings.
-              </p>
+
+            <div className="bg-white rounded-2xl p-8 shadow-xl border border-gray-200">
+              <h4 className="text-2xl font-bold text-gray-900 mb-6">Cost-Benefit Analysis</h4>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center p-4 bg-green-50 rounded-lg border border-green-200">
+                  <span className="text-gray-700">A-Team Cost/Hour:</span>
+                  <span className="font-bold text-green-600">$180</span>
+                </div>
+                <div className="flex justify-between items-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <span className="text-gray-700">B-Team Cost/Hour:</span>
+                  <span className="font-bold text-blue-600">$140</span>
+                </div>
+                <div className="flex justify-between items-center p-4 bg-purple-50 rounded-lg border border-purple-200">
+                  <span className="text-gray-700">Cost Savings:</span>
+                  <span className="font-bold text-purple-600">$40/hour</span>
+                </div>
+                <div className="flex justify-between items-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <span className="text-gray-700">Performance Difference:</span>
+                  <span className="font-bold text-yellow-600">+15%</span>
+                </div>
+              </div>
+              
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600">
+                  <strong>Strategic Insight:</strong> Use A-Team for maximum revenue potential, 
+                  B-Team for cost optimization during slower periods.
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-6">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-blue-600 to-green-600">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl font-bold text-gray-900 mb-6">
-            Discover Your Potential Savings
+          <h2 className="text-4xl font-bold text-white mb-6">
+            Ready to Transform Your Staffing?
           </h2>
-          <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-            Clients using our system regularly achieve savings through overtime reduction, overstaffing prevention, and skill-based optimization – without compromising guest experience.
+          <p className="text-xl text-blue-100 mb-8">
+            Join restaurants that are already using AI-powered performance analytics to optimize their teams, 
+            reduce costs, and boost efficiency.
           </p>
-          <Link
-            href="/signup"
-            className="inline-block px-8 py-4 bg-purple-600 text-white text-xl font-semibold rounded-lg hover:bg-purple-700 transition-colors shadow-lg hover:shadow-xl"
-          >
-            Get Started Free
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <a
+              href="/signup"
+              className="inline-flex items-center px-8 py-4 bg-white text-blue-600 text-lg font-semibold rounded-xl hover:bg-gray-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+            >
+              Start Free Trial
+            </a>
+            <a
+              href="/login"
+              className="inline-flex items-center px-8 py-4 border-2 border-white text-white text-lg font-semibold rounded-xl hover:bg-white hover:text-blue-600 transition-all duration-200"
+            >
+              Sign In
+            </a>
+          </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12 px-6">
-        <div className="max-w-7xl mx-auto text-center">
-          <div className="flex items-center justify-center space-x-3 mb-6">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">AI</span>
+      <footer className="bg-gray-900 text-white py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div>
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-green-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">R</span>
+                </div>
+                <span className="text-xl font-bold">RestaurantAI</span>
+              </div>
+              <p className="text-gray-400">
+                AI-powered staffing optimization for modern restaurants.
+              </p>
             </div>
-            <span className="text-xl font-semibold">Staffing Optimization AI</span>
+            
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Features</h3>
+              <ul className="space-y-2 text-gray-400">
+                <li>AI Schedule Generation</li>
+                <li>Performance Analytics</li>
+                <li>A-Team vs B-Team</li>
+                <li>Cost Optimization</li>
+              </ul>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Solutions</h3>
+              <ul className="space-y-2 text-gray-400">
+                <li>Restaurants</li>
+                <li>Cafes</li>
+                <li>Bars</li>
+                <li>Food Service</li>
+              </ul>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Company</h3>
+              <ul className="space-y-2 text-gray-400">
+                <li>About</li>
+                <li>Contact</li>
+                <li>Support</li>
+                <li>Privacy</li>
+              </ul>
+            </div>
           </div>
-          <p className="text-gray-400">
-            © 2024 Staffing Optimization AI. All rights reserved.
-          </p>
+          
+          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+            <p>&copy; 2024 RestaurantAI Staffing. All rights reserved.</p>
+          </div>
         </div>
       </footer>
     </div>

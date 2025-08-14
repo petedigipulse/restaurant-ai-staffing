@@ -280,7 +280,7 @@ ${staffMembers.map(staff => {
       ).join(', ')
     : 'Not specified';
   
-  return `- ${staff.name} (${staff.role}): $${staff.hourlyWage}/hr, Performance: ${staff.performance}/100, Available: ${availableDays}`;
+  return `- ${staff.name} (${staff.role}): $${staff.hourlyWage}/hr, Performance: ${staff.performance}/100, Available: ${availableDays}, Stations: ${staff.stations.join(', ')}`;
 }).join('\n')}
 
 HISTORICAL SALES DATA (${historicalData.length} records):
@@ -294,19 +294,68 @@ ${JSON.stringify(weatherForecast, null, 2)}
 BUSINESS RULES:
 ${JSON.stringify(businessRules, null, 2)}
 
+IMPORTANT REQUIREMENTS:
+1. EVERY shift (lunch and dinner) MUST have staff assigned to ALL stations
+2. NO empty shifts or stations - ensure full coverage
+3. Match staff skills to station requirements
+4. Consider staff availability and performance scores
+5. Balance workload across staff members
+6. Optimize for cost while maintaining service quality
+
 Please provide a JSON response with the following structure:
 {
   "optimizedSchedule": {
     "monday": {
       "lunch": {
         "stations": {
-          "kitchen": { "assignedStaff": [{"id": "staff_id", "name": "Staff Name", "role": "Role"}] },
-          "front_of_house": { "assignedStaff": [{"id": "staff_id", "name": "Staff Name", "role": "Role"}] }
+          "kitchen": { 
+            "assignedStaff": [
+              {"id": "staff_id", "name": "Staff Name", "role": "Role", "hourly_wage": 25}
+            ]
+          },
+          "front_of_house": { 
+            "assignedStaff": [
+              {"id": "staff_id", "name": "Staff Name", "role": "Role", "hourly_wage": 20}
+            ]
+          },
+          "bar": { 
+            "assignedStaff": [
+              {"id": "staff_id", "name": "Staff Name", "role": "Role", "hourly_wage": 22}
+            ]
+          },
+          "host": { 
+            "assignedStaff": [
+              {"id": "staff_id", "name": "Staff Name", "role": "Role", "hourly_wage": 18}
+            ]
+          }
         }
       },
-      "dinner": { /* same structure */ }
+      "dinner": { 
+        "stations": {
+          "kitchen": { 
+            "assignedStaff": [
+              {"id": "staff_id", "name": "Staff Name", "role": "Role", "hourly_wage": 25}
+            ]
+          },
+          "front_of_house": { 
+            "assignedStaff": [
+              {"id": "staff_id", "name": "Staff Name", "role": "Role", "hourly_wage": 20}
+            ]
+          },
+          "bar": { 
+            "assignedStaff": [
+              {"id": "staff_id", "name": "Staff Name", "role": "Role", "hourly_wage": 22}
+            ]
+          },
+          "host": { 
+            "assignedStaff": [
+              {"id": "staff_id", "name": "Staff Name", "role": "Role", "hourly_wage": 18}
+            ]
+          }
+        }
+      }
     }
-    /* repeat for other days */
+    /* repeat for tuesday, wednesday, thursday, friday, saturday, sunday */
   },
   "reasoning": "Detailed explanation of why this schedule is optimal",
   "expectedEfficiency": 85,
@@ -314,12 +363,7 @@ Please provide a JSON response with the following structure:
   "recommendations": ["Recommendation 1", "Recommendation 2"]
 }
 
-Focus on:
-1. Matching staff skills to station requirements
-2. Considering weather impact on demand
-3. Optimizing for cost while maintaining service quality
-4. Balancing workload across staff members
-5. Following business rules and constraints`;
+CRITICAL: Ensure every day has both lunch and dinner shifts with staff assigned to all 4 stations (kitchen, front_of_house, bar, host). Do not leave any shifts empty.`;
   }
 
   /**
