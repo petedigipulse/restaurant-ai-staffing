@@ -77,7 +77,11 @@ export class AIService {
             role: 'system',
             content: `You are an expert restaurant operations manager and AI scheduling specialist. 
             Your goal is to create optimal staff schedules that maximize efficiency, minimize costs, 
-            and ensure excellent customer service. Always provide detailed reasoning for your decisions.`
+            and ensure excellent customer service. 
+            
+            CRITICAL: You must respond with ONLY valid JSON. Do not include any text before or after the JSON.
+            Do not include explanations, introductions, or conclusions outside the JSON structure.
+            The response must be parseable JSON that can be directly used by the application.`
           },
           {
             role: 'user',
@@ -94,7 +98,32 @@ export class AIService {
         throw new Error('No response content from AI');
       }
 
-      const result = JSON.parse(content);
+      console.log('🔍 Raw AI response content:', content);
+      console.log('🔍 Content length:', content.length);
+      console.log('🔍 Content type:', typeof content);
+
+      let result;
+      try {
+        result = JSON.parse(content);
+        console.log('✅ JSON parsed successfully:', result);
+      } catch (parseError: any) {
+        console.error('❌ JSON parsing failed:', parseError);
+        console.error('❌ Failed content:', content);
+        
+        // Try to extract JSON from the response if it contains extra text
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            result = JSON.parse(jsonMatch[0]);
+            console.log('✅ JSON extracted and parsed from response:', result);
+          } catch (extractError: any) {
+            console.error('❌ JSON extraction also failed:', extractError);
+            throw new Error(`Invalid JSON response from AI: ${parseError.message}. Raw content: ${content.substring(0, 200)}...`);
+          }
+        } else {
+          throw new Error(`No valid JSON found in AI response: ${content.substring(0, 200)}...`);
+        }
+      }
       
       console.log('✅ AI schedule optimization completed successfully');
       
@@ -156,7 +185,32 @@ export class AIService {
         throw new Error('No response content from AI');
       }
 
-      const result = JSON.parse(content);
+      console.log('🔍 Raw AI response content:', content);
+      console.log('🔍 Content length:', content.length);
+      console.log('🔍 Content type:', typeof content);
+
+      let result;
+      try {
+        result = JSON.parse(content);
+        console.log('✅ JSON parsed successfully:', result);
+      } catch (parseError: any) {
+        console.error('❌ JSON parsing failed:', parseError);
+        console.error('❌ Failed content:', content);
+        
+        // Try to extract JSON from the response if it contains extra text
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            result = JSON.parse(jsonMatch[0]);
+            console.log('✅ JSON extracted and parsed from response:', result);
+          } catch (extractError: any) {
+            console.error('❌ JSON extraction also failed:', extractError);
+            throw new Error(`Invalid JSON response from AI: ${parseError.message}. Raw content: ${content.substring(0, 200)}...`);
+          }
+        } else {
+          throw new Error(`No valid JSON found in AI response: ${content.substring(0, 200)}...`);
+        }
+      }
       
       console.log('✅ AI predictive insights generated successfully');
       
@@ -231,7 +285,32 @@ export class AIService {
         throw new Error('No response content from AI');
       }
 
-      const result = JSON.parse(content);
+      console.log('🔍 Raw AI response content:', content);
+      console.log('🔍 Content length:', content.length);
+      console.log('🔍 Content type:', typeof content);
+
+      let result;
+      try {
+        result = JSON.parse(content);
+        console.log('✅ JSON parsed successfully:', result);
+      } catch (parseError: any) {
+        console.error('❌ JSON parsing failed:', parseError);
+        console.error('❌ Failed content:', content);
+        
+        // Try to extract JSON from the response if it contains extra text
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            result = JSON.parse(jsonMatch[0]);
+            console.log('✅ JSON extracted and parsed from response:', result);
+          } catch (extractError: any) {
+            console.error('❌ JSON extraction also failed:', extractError);
+            throw new Error(`Invalid JSON response from AI: ${parseError.message}. Raw content: ${content.substring(0, 200)}...`);
+          }
+        } else {
+          throw new Error(`No valid JSON found in AI response: ${content.substring(0, 200)}...`);
+        }
+      }
       
       console.log('✅ AI business insights generated successfully');
       
@@ -355,7 +434,6 @@ Please provide a JSON response with the following structure:
         }
       }
     }
-    /* repeat for tuesday, wednesday, thursday, friday, saturday, sunday */
   },
   "reasoning": "Detailed explanation of why this schedule is optimal",
   "expectedEfficiency": 85,
