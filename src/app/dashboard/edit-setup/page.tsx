@@ -123,7 +123,7 @@ export default function EditSetupPage() {
       await DatabaseService.updateOrganization(organizationId, restaurantData);
       
       // Update business rules
-      await DatabaseService.updateBusinessRules(organizationId, businessRules);
+      await DatabaseService.updateBusinessRulesByOrganization(organizationId, businessRules);
 
       setMessage({ type: 'success', text: 'Setup information updated successfully!' });
     } catch (error) {

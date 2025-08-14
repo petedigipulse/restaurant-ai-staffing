@@ -286,6 +286,22 @@ export class DatabaseService {
     return rules;
   }
 
+  static async updateBusinessRulesByOrganization(organizationId: string, updates: Partial<BusinessRules>) {
+    const { data: rules, error } = await supabase
+      .from('business_rules')
+      .update(updates)
+      .eq('organization_id', organizationId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating business rules by organization:', error);
+      throw new Error(`Failed to update business rules: ${error.message}`);
+    }
+
+    return rules;
+  }
+
   // Utility functions
   static async getOrganizationByOwnerId(ownerId: string) {
     const { data: org, error } = await supabase

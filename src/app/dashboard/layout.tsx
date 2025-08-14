@@ -108,35 +108,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       Analytics
                     </Link>
                     <Link
-                      href="/onboarding"
-                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      Onboarding
-                    </Link>
-                    <Link
-                      href="/dashboard/ai-test"
-                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      AI Test
-                    </Link>
-                    <Link
-                      href="/dashboard/billing" 
-                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      Billing
-                    </Link>
-                    <Link
                       href="/dashboard/edit-setup" 
                       className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      Edit Setup
+                      Business Info
                     </Link>
-                    <Link
-                      href="/dashboard" 
-                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      Settings
-                    </Link>
+                    <div className="relative group">
+                      <button className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center space-x-1">
+                        <span>Settings</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        <div className="py-1">
+                          <Link
+                            href="/dashboard/billing" 
+                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                          >
+                            Billing
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
                   </nav>
                 </div>
                 
