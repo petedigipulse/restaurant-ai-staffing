@@ -61,7 +61,8 @@ export default function HistoricalDataPage() {
         
         // Group the imports
         console.log('🔄 Grouping imports...');
-        groupImportsByDate(data || []);
+        const grouped = groupImportsByDate(data || []);
+        setImportGroups(grouped); // <--- THIS WAS MISSING
         console.log('✅ Data loading and grouping complete');
       }
     } catch (error) {
@@ -118,12 +119,7 @@ export default function HistoricalDataPage() {
     
     console.log('✅ Final import groups:', importGroupsArray.map(g => `${g.importDate}: ${g.count} points`));
     console.log('🔄 Setting import groups state with', importGroupsArray.length, 'groups');
-    setImportGroups(importGroupsArray);
-    
-    // Verify state update
-    setTimeout(() => {
-      console.log('🔍 Current import groups state:', importGroupsArray.length, 'groups');
-    }, 100);
+    return importGroupsArray;
   };
 
   const toggleImportExpansion = (importId: string) => {
@@ -202,7 +198,8 @@ export default function HistoricalDataPage() {
           
           // Regroup the data
           console.log('🔄 Regrouping imports...');
-          groupImportsByDate(data || []);
+          const grouped = groupImportsByDate(data || []);
+          setImportGroups(grouped);
           console.log('✅ Data reloaded and regrouped successfully');
           
           // Force a re-render
@@ -228,6 +225,31 @@ export default function HistoricalDataPage() {
       // Reset file input
       event.target.value = '';
     }
+  };
+
+  const downloadCSVTemplate = () => {
+    const csvContent = `date,time,total_sales,customer_count,station_breakdown,weather_conditions,special_events,notes
+2025-08-13,09:00,150.75,25,"Kitchen: 100.00, Front of House: 50.75",Sunny 22°C,,Morning rush
+2025-08-13,10:00,220.50,35,"Kitchen: 150.00, Front of House: 70.50",Sunny 24°C,,Peak breakfast
+2025-08-13,11:00,300.00,50,"Kitchen: 200.00, Front of House: 100.00",Sunny 26°C,,Lunch prep
+2025-08-13,12:00,450.25,75,"Kitchen: 300.00, Front of House: 150.25",Sunny 28°C,,Lunch rush
+2025-08-13,13:00,380.50,65,"Kitchen: 250.00, Front of House: 130.50",Sunny 29°C,,Post-lunch
+2025-08-13,14:00,220.00,40,"Kitchen: 150.00, Front of House: 70.00",Sunny 30°C,,Afternoon lull
+2025-08-13,15:00,180.75,30,"Kitchen: 120.00, Front of House: 60.75",Sunny 31°C,,Pre-dinner
+2025-08-13,16:00,320.00,55,"Kitchen: 200.00, Front of House: 120.00",Sunny 30°C,,Dinner start
+2025-08-13,17:00,480.25,80,"Kitchen: 320.00, Front of House: 160.25",Sunny 29°C,,Dinner rush
+2025-08-13,18:00,520.50,85,"Kitchen: 350.00, Front of House: 170.50",Sunny 28°C,,Peak dinner
+2025-08-13,19:00,450.00,75,"Kitchen: 300.00, Front of House: 150.00",Sunny 27°C,,Evening service`;
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'historical_data_template.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const formatCurrency = (amount: number) => {
@@ -272,6 +294,13 @@ export default function HistoricalDataPage() {
               <p className="text-gray-600 mt-2">View and manage your sales history and performance data</p>
             </div>
             <div className="flex space-x-3">
+              <Button 
+                variant="outline" 
+                onClick={() => downloadCSVTemplate()}
+                className="px-4 py-2"
+              >
+                📥 Download Template
+              </Button>
               <input
                 type="file"
                 accept=".csv"
@@ -325,30 +354,6 @@ export default function HistoricalDataPage() {
                     className="text-sm px-3 py-1"
                   >
                     🔄 Refresh Display
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      console.log('🔄 Force refresh triggered');
-                      setIsLoading(true);
-                      setTimeout(() => loadData(), 100);
-                    }}
-                    className="text-sm px-3 py-1"
-                  >
-                    🔄 Force Refresh
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      console.log('🔍 Debug: Current state');
-                      console.log('📊 Historical data:', historicalData.length, 'records');
-                      console.log('📦 Import groups:', importGroups.length, 'groups');
-                      console.log('🏢 Organization ID:', organizationId);
-                      console.log('📅 Sample data:', historicalData.slice(0, 3));
-                    }}
-                    className="text-sm px-3 py-1"
-                  >
-                    🔍 Debug
                   </Button>
                 </div>
               )}
