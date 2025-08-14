@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { DatabaseService } from "@/lib/services/database";
 import { StaffMember } from "@/lib/supabase";
 import WeatherForecast from "./components/WeatherForecast";
@@ -194,6 +194,13 @@ export default function SchedulePage() {
   const [selectedStartDate, setSelectedStartDate] = useState<Date>(new Date());
   const [selectedEndDate, setSelectedEndDate] = useState<Date>(new Date());
   const [scheduleDays, setScheduleDays] = useState<ScheduleDay[]>([]);
+  const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
+  const scheduleDaysRef = useRef<ScheduleDay[]>([]);
+  
+  // Update ref when scheduleDays changes
+  useEffect(() => {
+    scheduleDaysRef.current = scheduleDays;
+  }, [scheduleDays]);
 
   // Generate schedule days based on selected date range
   const generateScheduleDays = useCallback((startDate: Date, endDate: Date) => {
@@ -245,6 +252,9 @@ export default function SchedulePage() {
 
   // Load existing schedule from database
   const loadExistingSchedule = useCallback(async (orgId: string) => {
+    if (isLoadingSchedule) return; // Prevent multiple simultaneous calls
+    setIsLoadingSchedule(true);
+
     try {
       // Use the selected date range instead of hardcoded current week
       const startDateString = selectedStartDate.toISOString().split('T')[0];
@@ -261,7 +271,7 @@ export default function SchedulePage() {
           console.log('🔍 Found shifts data:', existingSchedule.shifts);
           
           // Use the transformed data directly from the API
-          const transformedSchedule = scheduleDays.map(day => {
+          const transformedSchedule = scheduleDaysRef.current.map(day => {
             const dbDay = existingSchedule.shifts[day.day]; // Use exact day name (Mon, Tue, etc.)
             console.log(`🔍 Processing day ${day.day}:`, dbDay);
             
@@ -380,7 +390,7 @@ export default function SchedulePage() {
                         }
                       });
                       
-                      console.log(`🎯 Final assigned staff for dinner:`, dbStation.assignedStaff);
+                      console.log(`🎯 Final assigned staff for dinner:`, assignedStaff);
                       
                       return {
                         ...station,
@@ -403,8 +413,10 @@ export default function SchedulePage() {
       }
     } catch (error) {
       console.error('❌ Error loading existing schedule:', error);
+    } finally {
+      setIsLoadingSchedule(false);
     }
-  }, [selectedStartDate, selectedEndDate, scheduleDays, staffMembers]);
+  }, [selectedStartDate, selectedEndDate, staffMembers, isLoadingSchedule]); // Removed scheduleDays from dependencies
 
   // Load staff data from database
   useEffect(() => {
@@ -447,7 +459,7 @@ export default function SchedulePage() {
     };
     
     loadStaffData();
-  }, [generateScheduleDays, loadExistingSchedule]);
+  }, [generateScheduleDays]); // Removed loadExistingSchedule from dependencies
 
   const handleDragStart = (e: React.DragEvent, staff: StaffMember) => {
     setDraggedStaff(staff);
