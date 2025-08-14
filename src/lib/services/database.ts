@@ -500,6 +500,48 @@ export class DatabaseService {
     }
   }
 
+  // Import historical data from CSV (for API routes)
+  static async importHistoricalDataFromCSV(organizationId: string, historicalData: any[]) {
+    try {
+      // For API routes, we trust the organizationId parameter
+      // The authentication should be handled at the API route level
+      
+      // Validate the data structure
+      if (!Array.isArray(historicalData) || historicalData.length === 0) {
+        throw new Error('Invalid historical data: must be a non-empty array');
+      }
+
+      // Validate each data point has required fields
+      const validatedData = historicalData.map((item, index) => {
+        if (!item.organization_id || !item.date) {
+          throw new Error(`Data point ${index} missing required fields: organization_id and date`);
+        }
+        
+        return {
+          ...item,
+          created_at: item.created_at || new Date().toISOString()
+        };
+      });
+
+      // Insert the historical data
+      const { data, error } = await supabase
+        .from('historical_sales_data')
+        .insert(validatedData)
+        .select();
+
+      if (error) {
+        console.error('Database error inserting historical data:', error);
+        throw new Error(`Failed to save historical data: ${error.message}`);
+      }
+
+      console.log(`✅ Successfully imported ${validatedData.length} historical data points`);
+      return data;
+    } catch (error) {
+      console.error('Error importing historical data from CSV:', error);
+      throw error;
+    }
+  }
+
   // Helper method to parse station sales string into object
   private static parseStationSales(stationSales: string): Record<string, number> {
     if (!stationSales) return {};

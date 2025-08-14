@@ -90,8 +90,8 @@ export async function POST(request: NextRequest) {
 
     // Save to database
     try {
-      // Use DatabaseService method instead of direct supabase access
-      const result = await DatabaseService.saveHistoricalDataFromOnboarding(organizationId, historicalData);
+      // Use the new CSV import method instead of onboarding method
+      const result = await DatabaseService.importHistoricalDataFromCSV(organizationId, historicalData);
       
       console.log(`✅ Successfully imported ${historicalData.length} historical data points`);
 
