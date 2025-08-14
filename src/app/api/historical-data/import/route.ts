@@ -89,27 +89,25 @@ export async function POST(request: NextRequest) {
     }
 
     // Save to database
-    const { data, error } = await DatabaseService.supabase
-      .from('historical_sales_data')
-      .insert(historicalData)
-      .select();
+    try {
+      // Use DatabaseService method instead of direct supabase access
+      const result = await DatabaseService.saveHistoricalDataFromOnboarding(organizationId, historicalData);
+      
+      console.log(`✅ Successfully imported ${historicalData.length} historical data points`);
 
-    if (error) {
-      console.error('Error saving historical data:', error);
+      return NextResponse.json({
+        success: true,
+        message: `Successfully imported ${historicalData.length} data points`,
+        importedCount: historicalData.length,
+        data: result
+      });
+    } catch (dbError: any) {
+      console.error('Error saving historical data:', dbError);
       return NextResponse.json(
-        { error: `Failed to save data: ${error.message}` },
+        { error: `Failed to save data: ${dbError.message}` },
         { status: 500 }
       );
     }
-
-    console.log(`✅ Successfully imported ${historicalData.length} historical data points`);
-
-    return NextResponse.json({
-      success: true,
-      message: `Successfully imported ${historicalData.length} data points`,
-      importedCount: historicalData.length,
-      data: data
-    });
 
   } catch (error: any) {
     console.error('Error importing historical data:', error);

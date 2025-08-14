@@ -70,9 +70,16 @@ export default function HistoricalDataPage() {
   };
 
   const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('🔄 CSV upload triggered:', event.target.files);
+    
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      console.log('❌ No file selected');
+      return;
+    }
 
+    console.log('📁 File selected:', file.name, file.size, file.type);
+    
     setIsUploading(true);
     setMessage(null);
 
@@ -81,13 +88,18 @@ export default function HistoricalDataPage() {
       formData.append('csv', file);
       formData.append('organizationId', organizationId || '');
 
+      console.log('📤 Sending form data to API...');
+
       const response = await fetch('/api/historical-data/import', {
         method: 'POST',
         body: formData,
       });
 
+      console.log('📥 API response status:', response.status);
+
       if (response.ok) {
         const result = await response.json();
+        console.log('✅ Import successful:', result);
         setMessage({ type: 'success', text: `Successfully imported ${result.importedCount} data points!` });
         
         // Reload historical data
@@ -95,10 +107,11 @@ export default function HistoricalDataPage() {
         setHistoricalData(data || []);
       } else {
         const error = await response.json();
+        console.error('❌ Import failed:', error);
         setMessage({ type: 'error', text: `Import failed: ${error.error}` });
       }
     } catch (error) {
-      console.error('Error uploading CSV:', error);
+      console.error('❌ Error uploading CSV:', error);
       setMessage({ type: 'error', text: 'Failed to upload CSV file' });
     } finally {
       setIsUploading(false);
@@ -155,12 +168,35 @@ export default function HistoricalDataPage() {
                 onChange={(e) => handleCSVUpload(e)}
                 className="hidden"
                 id="csv-upload"
+                disabled={isUploading}
               />
               <label htmlFor="csv-upload">
-                <Button variant="outline" className="px-4 py-2 cursor-pointer" disabled={isUploading}>
+                <Button 
+                  variant="outline" 
+                  className="px-4 py-2 cursor-pointer" 
+                  disabled={isUploading}
+                  onClick={() => {
+                    // Trigger file input click as backup
+                    const fileInput = document.getElementById('csv-upload') as HTMLInputElement;
+                    if (fileInput) {
+                      fileInput.click();
+                    }
+                  }}
+                >
                   {isUploading ? '📁 Uploading...' : '📁 Upload CSV'}
                 </Button>
               </label>
+              <Button 
+                variant="outline" 
+                className="px-4 py-2 text-xs"
+                onClick={() => {
+                  console.log('🧪 Test button clicked');
+                  console.log('📁 File input element:', document.getElementById('csv-upload'));
+                  console.log('🔍 Organization ID:', organizationId);
+                }}
+              >
+                🧪 Test
+              </Button>
               <Link href="/onboarding">
                 <Button variant="outline" className="px-4 py-2">
                   📥 Add More Data
