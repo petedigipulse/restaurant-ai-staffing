@@ -49,16 +49,23 @@ export default function HistoricalDataPage() {
 
   const loadData = async () => {
     try {
+      console.log('🔄 Loading data...');
       const orgId = await DatabaseService.getCurrentUserOrganizationId();
       setOrganizationId(orgId);
 
       if (orgId) {
+        console.log('🏢 Organization ID:', orgId);
         const data = await DatabaseService.getHistoricalDataForAnalytics(orgId);
+        console.log('📊 Loaded historical data:', data?.length, 'records');
         setHistoricalData(data || []);
+        
+        // Group the imports
+        console.log('🔄 Grouping imports...');
         groupImportsByDate(data || []);
+        console.log('✅ Data loading and grouping complete');
       }
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('❌ Error loading data:', error);
       setMessage({ type: 'error', text: 'Failed to load historical data' });
     } finally {
       setIsLoading(false);
@@ -110,7 +117,13 @@ export default function HistoricalDataPage() {
     importGroupsArray.sort((a, b) => new Date(b.importDate).getTime() - new Date(a.importDate).getTime());
     
     console.log('✅ Final import groups:', importGroupsArray.map(g => `${g.importDate}: ${g.count} points`));
+    console.log('🔄 Setting import groups state with', importGroupsArray.length, 'groups');
     setImportGroups(importGroupsArray);
+    
+    // Verify state update
+    setTimeout(() => {
+      console.log('🔍 Current import groups state:', importGroupsArray.length, 'groups');
+    }, 100);
   };
 
   const toggleImportExpansion = (importId: string) => {
@@ -279,17 +292,59 @@ export default function HistoricalDataPage() {
             <div className="flex items-center justify-between">
               <span>{message.text}</span>
               {message.type === 'success' && (
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    console.log('🔄 Manual refresh triggered');
-                    loadData();
-                  }}
-                  className="ml-4 text-sm px-3 py-1"
-                >
-                  🔄 Refresh Display
-                </Button>
+                <div className="flex space-x-2 ml-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      console.log('🔄 Manual refresh triggered');
+                      loadData();
+                    }}
+                    className="text-sm px-3 py-1"
+                  >
+                    🔄 Refresh Display
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      console.log('🔄 Force refresh triggered');
+                      setIsLoading(true);
+                      setTimeout(() => loadData(), 100);
+                    }}
+                    className="text-sm px-3 py-1"
+                  >
+                    🔄 Force Refresh
+                  </Button>
+                </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Overall Summary */}
+        {historicalData.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Overall Summary</h2>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="text-center">
+                <p className="text-sm font-medium text-gray-600">Total Data Points</p>
+                <p className="text-2xl font-bold text-gray-900">{historicalData.length}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-medium text-gray-600">Total Sales</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {formatCurrency(historicalData.reduce((sum, item) => sum + (item.total_sales || 0), 0))}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-medium text-gray-600">Total Customers</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {historicalData.reduce((sum, item) => sum + (item.customer_count || 0), 0)}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-medium text-gray-600">Import Groups</p>
+                <p className="text-2xl font-bold text-purple-600">{importGroups.length}</p>
+              </div>
             </div>
           </div>
         )}
