@@ -66,16 +66,25 @@ export default function HistoricalDataPage() {
   };
 
   const groupImportsByDate = (data: HistoricalDataPoint[]) => {
+    console.log('🔄 Grouping imports for', data.length, 'data points');
+    
     // Group data by import date (created_at date)
     const groups = new Map<string, HistoricalDataPoint[]>();
     
-    data.forEach(point => {
+    data.forEach((point, index) => {
       const importDate = new Date(point.created_at).toDateString();
       if (!groups.has(importDate)) {
         groups.set(importDate, []);
       }
       groups.get(importDate)!.push(point);
+      
+      // Log first few points for debugging
+      if (index < 3) {
+        console.log(`📅 Point ${index}: date=${point.date}, created_at=${point.created_at}, importDate=${importDate}`);
+      }
     });
+
+    console.log('📊 Found', groups.size, 'import groups');
 
     // Convert to ImportGroup array
     const importGroupsArray: ImportGroup[] = Array.from(groups.entries()).map(([date, points]) => {
@@ -83,6 +92,8 @@ export default function HistoricalDataPage() {
       const totalSales = points.reduce((sum, point) => sum + (point.total_sales || 0), 0);
       const totalCustomers = points.reduce((sum, point) => sum + (point.customer_count || 0), 0);
       const dateRange = `${sortedPoints[0]?.date} to ${sortedPoints[sortedPoints.length - 1]?.date}`;
+      
+      console.log(`📈 Group ${date}: ${points.length} points, sales: $${totalSales}, customers: ${totalCustomers}`);
       
       return {
         id: date,
@@ -97,6 +108,8 @@ export default function HistoricalDataPage() {
 
     // Sort by import date (newest first)
     importGroupsArray.sort((a, b) => new Date(b.importDate).getTime() - new Date(a.importDate).getTime());
+    
+    console.log('✅ Final import groups:', importGroupsArray.map(g => `${g.importDate}: ${g.count} points`));
     setImportGroups(importGroupsArray);
   };
 
@@ -152,9 +165,20 @@ export default function HistoricalDataPage() {
         setMessage({ type: 'success', text: messageText });
         
         // Reload historical data and regroup imports
-        const data = await DatabaseService.getHistoricalDataForAnalytics(organizationId!);
-        setHistoricalData(data || []);
-        groupImportsByDate(data || []);
+        try {
+          console.log('🔄 Reloading data after import...');
+          const data = await DatabaseService.getHistoricalDataForAnalytics(organizationId!);
+          console.log('📊 Reloaded data:', data?.length, 'records');
+          setHistoricalData(data || []);
+          
+          // Regroup the data
+          console.log('🔄 Regrouping imports...');
+          groupImportsByDate(data || []);
+          console.log('✅ Data reloaded and regrouped successfully');
+        } catch (error) {
+          console.error('❌ Error reloading data:', error);
+          setMessage({ type: 'error', text: 'Data imported but failed to refresh display. Please refresh the page.' });
+        }
       } else {
         const error = await response.json();
         console.error('❌ Import failed:', error);
@@ -236,22 +260,6 @@ export default function HistoricalDataPage() {
                   {isUploading ? '📁 Uploading...' : '📁 Upload CSV'}
                 </Button>
               </label>
-              <Button 
-                variant="outline" 
-                className="px-4 py-2 text-xs"
-                onClick={() => {
-                  console.log('🧪 Test button clicked');
-                  console.log('📁 File input element:', document.getElementById('csv-upload'));
-                  console.log('🔍 Organization ID:', organizationId);
-                }}
-              >
-                🧪 Test
-              </Button>
-              <Link href="/onboarding">
-                <Button variant="outline" className="px-4 py-2">
-                  📥 Add More Data
-                </Button>
-              </Link>
               <Link href="/dashboard/analytics">
                 <Button className="px-4 py-2 bg-blue-600 hover:bg-blue-700">
                   📊 View Analytics
@@ -268,7 +276,21 @@ export default function HistoricalDataPage() {
               ? 'bg-green-50 border border-green-200 text-green-800' 
               : 'bg-red-50 border border-red-200 text-red-800'
           }`}>
-            {message.text}
+            <div className="flex items-center justify-between">
+              <span>{message.text}</span>
+              {message.type === 'success' && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    console.log('🔄 Manual refresh triggered');
+                    loadData();
+                  }}
+                  className="ml-4 text-sm px-3 py-1"
+                >
+                  🔄 Refresh Display
+                </Button>
+              )}
+            </div>
           </div>
         )}
 
