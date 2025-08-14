@@ -108,10 +108,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       Analytics
                     </Link>
                     <Link
-                      href="/dashboard/edit-setup" 
+                      href="/dashboard/business-rules" 
                       className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      Business Info
+                      Business Rules
                     </Link>
                     <div className="relative group">
                       <button className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center space-x-1">
