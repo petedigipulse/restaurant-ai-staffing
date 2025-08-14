@@ -1011,19 +1011,15 @@ export default function SchedulePage() {
     }
   };
 
-  const handleViewScheduleDetails = (scheduleToView: {
-    id: string;
-    week_start_date: string;
-    shifts: any;
-    total_labor_cost: number;
-    total_hours: number;
-    ai_generated: boolean;
-    created_at: string;
-    updated_at: string;
-  }) => {
-    setSelectedSchedule(scheduleToView);
+  // Memoize handlers to prevent unnecessary re-renders
+  const handleCloseAIReport = useCallback(() => {
+    setAiOptimizationReport(null);
+  }, []);
+
+  const handleViewScheduleDetails = useCallback((schedule: any) => {
+    setSelectedSchedule(schedule);
     setShowScheduleDetails(true);
-  };
+  }, []);
 
   const handleCloseScheduleDetails = () => {
     setShowScheduleDetails(false);
@@ -1071,7 +1067,7 @@ export default function SchedulePage() {
               {/* View AI Report Button */}
               {aiOptimizationReport && (
                 <Button
-                  onClick={() => setAiOptimizationReport(null)}
+                  onClick={handleCloseAIReport}
                   variant="outline"
                   className="px-6 py-3 rounded-lg font-semibold border-purple-600 text-purple-600 hover:bg-purple-50 transition-all duration-200"
                 >
@@ -1431,7 +1427,7 @@ export default function SchedulePage() {
         {/* AI Optimization Report */}
         <AIOptimizationReport
           report={aiOptimizationReport}
-          onClose={() => setAiOptimizationReport(null)}
+          onClose={handleCloseAIReport}
         />
 
         {/* Schedule Details Modal */}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -21,8 +21,21 @@ interface AIOptimizationReportProps {
 export default function AIOptimizationReport({ report, onClose }: AIOptimizationReportProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  if (!report) return null;
+  // Memoize click handlers to prevent setState during render
+  const handleToggleExpanded = useCallback(() => {
+    setIsExpanded(prev => !prev);
+  }, []);
 
+  const handleClose = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
+  // Early return to prevent any state updates during render
+  if (!report) {
+    return null;
+  }
+
+  // Ensure all state updates only happen in event handlers
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -169,11 +182,11 @@ export default function AIOptimizationReport({ report, onClose }: AIOptimization
           <div className="flex justify-end space-x-3 pt-4">
             <Button
               variant="outline"
-              onClick={() => setIsExpanded(!isExpanded)}
+              onClick={handleToggleExpanded}
             >
               {isExpanded ? 'Show Less' : 'Show More Details'}
             </Button>
-            <Button onClick={onClose}>
+            <Button onClick={handleClose}>
               Close Report
             </Button>
           </div>
