@@ -70,6 +70,7 @@ export class AIService {
       
       const prompt = this.buildScheduleOptimizationPrompt(request);
       
+      // Increase max tokens for complex schedule responses
       const response = await openai.chat.completions.create({
         model: AI_MODEL,
         messages: [
@@ -79,8 +80,13 @@ export class AIService {
             Your goal is to create optimal staff schedules that maximize efficiency, minimize costs, 
             and ensure excellent customer service. 
             
-            CRITICAL: You must respond with ONLY valid JSON. Do not include any text before or after the JSON.
-            Do not include explanations, introductions, or conclusions outside the JSON structure.
+            CRITICAL REQUIREMENTS:
+            1. Respond with ONLY valid JSON - no text before or after
+            2. Ensure the JSON is complete and properly closed
+            3. Keep the schedule structure concise but complete
+            4. Use staff names as IDs for simplicity
+            5. Include all required fields: optimizedSchedule, reasoning, recommendations, nextSteps
+            
             The response must be parseable JSON that can be directly used by the application.`
           },
           {
@@ -88,7 +94,7 @@ export class AIService {
             content: prompt
           }
         ],
-        max_tokens: MAX_TOKENS,
+        max_tokens: 8000, // Increased from default to handle complex schedules
         temperature: TEMPERATURE,
         response_format: { type: 'json_object' }
       });
@@ -98,30 +104,87 @@ export class AIService {
         throw new Error('No response content from AI');
       }
 
-      console.log('🔍 Raw AI response content:', content);
-      console.log('🔍 Content length:', content.length);
-      console.log('🔍 Content type:', typeof content);
+      console.log('🔍 Raw AI response content length:', content.length);
+      console.log('🔍 Response truncated:', response.choices[0]?.finish_reason);
+
+      // Check if response was truncated
+      if (response.choices[0]?.finish_reason === 'length') {
+        console.warn('⚠️ AI response was truncated due to token limits');
+      }
 
       let result;
       try {
         result = JSON.parse(content);
-        console.log('✅ JSON parsed successfully:', result);
+        console.log('✅ JSON parsed successfully');
+        
+        // Validate the response structure
+        if (!result.optimizedSchedule) {
+          throw new Error('AI response missing required optimizedSchedule field');
+        }
+        
+        console.log('✅ Response validation passed');
       } catch (parseError: any) {
         console.error('❌ JSON parsing failed:', parseError);
-        console.error('❌ Failed content:', content);
+        console.error('❌ Failed content (first 500 chars):', content.substring(0, 500));
+        console.error('❌ Failed content (last 500 chars):', content.substring(Math.max(0, content.length - 500)));
         
-        // Try to extract JSON from the response if it contains extra text
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          try {
-            result = JSON.parse(jsonMatch[0]);
-            console.log('✅ JSON extracted and parsed from response:', result);
-          } catch (extractError: any) {
-            console.error('❌ JSON extraction also failed:', extractError);
-            throw new Error(`Invalid JSON response from AI: ${parseError.message}. Raw content: ${content.substring(0, 200)}...`);
+        // Try to extract and fix truncated JSON
+        let fixedContent = content;
+        
+        // If the response ends abruptly, try to close it properly
+        if (content.trim().endsWith('...') || !content.trim().endsWith('}')) {
+          console.log('🔧 Attempting to fix truncated JSON...');
+          
+          // Find the last complete object or array
+          const lastBraceIndex = content.lastIndexOf('}');
+          const lastBracketIndex = content.lastIndexOf(']');
+          const lastIndex = Math.max(lastBraceIndex, lastBracketIndex);
+          
+          if (lastIndex > 0) {
+            // Find the matching opening brace/bracket
+            let braceCount = 0;
+            let bracketCount = 0;
+            let startIndex = -1;
+            
+            for (let i = lastIndex; i >= 0; i--) {
+              if (content[i] === '}') braceCount++;
+              else if (content[i] === '{') braceCount--;
+              else if (content[i] === ']') bracketCount++;
+              else if (content[i] === '[') bracketCount--;
+              
+              if (braceCount === 0 && bracketCount === 0) {
+                startIndex = i;
+                break;
+              }
+            }
+            
+            if (startIndex >= 0) {
+              fixedContent = content.substring(startIndex, lastIndex + 1);
+              console.log('🔧 Extracted complete JSON segment');
+            }
           }
-        } else {
-          throw new Error(`No valid JSON found in AI response: ${content.substring(0, 200)}...`);
+        }
+        
+        // Try to parse the fixed content
+        try {
+          result = JSON.parse(fixedContent);
+          console.log('✅ Fixed JSON parsed successfully');
+        } catch (fixError: any) {
+          console.error('❌ JSON fixing also failed:', fixError);
+          
+          // Last resort: try to extract JSON using regex
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            try {
+              result = JSON.parse(jsonMatch[0]);
+              console.log('✅ JSON extracted using regex fallback');
+            } catch (extractError: any) {
+              console.error('❌ All JSON parsing attempts failed');
+              throw new Error(`AI response could not be parsed as valid JSON. Response appears to be truncated. Please try again with a smaller date range or fewer staff members.`);
+            }
+          } else {
+            throw new Error(`No valid JSON structure found in AI response. Response appears to be corrupted or truncated.`);
+          }
         }
       }
       
@@ -130,7 +193,7 @@ export class AIService {
       return {
         success: true,
         data: result,
-        reasoning: result.reasoning,
+        reasoning: result.reasoning || 'Schedule optimized based on business rules and staff availability',
         cost: {
           inputTokens: response.usage?.prompt_tokens || 0,
           outputTokens: response.usage?.completion_tokens || 0,
