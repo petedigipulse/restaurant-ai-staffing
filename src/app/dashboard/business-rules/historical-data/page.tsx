@@ -99,14 +99,14 @@ export default function HistoricalDataPage() {
   const groupImportsByDate = (data: HistoricalDataPoint[]) => {
     console.log('🔄 Grouping imports for', data.length, 'data points');
     
-    // Group data by import batch (created_at timestamp rounded to nearest minute)
+    // Group data by import batch (created_at timestamp with seconds for uniqueness)
     const groups = new Map<string, HistoricalDataPoint[]>();
     
     data.forEach((point, index) => {
-      // Round to nearest minute to group imports that happen close together
+      // Use seconds precision to create more unique groups
       const importTime = new Date(point.created_at);
       const roundedTime = new Date(importTime.getFullYear(), importTime.getMonth(), importTime.getDate(), 
-                                  importTime.getHours(), importTime.getMinutes());
+                                  importTime.getHours(), importTime.getMinutes(), importTime.getSeconds());
       const importKey = roundedTime.toISOString();
       
       if (!groups.has(importKey)) {
@@ -129,14 +129,15 @@ export default function HistoricalDataPage() {
       const totalCustomers = points.reduce((sum, point) => sum + (point.customer_count || 0), 0);
       const dateRange = `${sortedPoints[0]?.date} to ${sortedPoints[sortedPoints.length - 1]?.date}`;
       
-      // Format the import time for display
+      // Format the import time for display with seconds for uniqueness
       const importTime = new Date(importKey);
       const importDateDisplay = importTime.toLocaleDateString('en-US', { 
         month: 'short', 
         day: 'numeric', 
         year: 'numeric',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
+        second: '2-digit'
       });
       
       console.log(`📈 Group ${importDateDisplay}: ${points.length} points, sales: $${totalSales}, customers: ${totalCustomers}`);
@@ -153,7 +154,7 @@ export default function HistoricalDataPage() {
     });
 
     // Sort by import time (newest first)
-    importGroupsArray.sort((a, b) => new Date(a.id).getTime() - new Date(b.id).getTime());
+    importGroupsArray.sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime());
     
     console.log('✅ Final import groups:', importGroupsArray.map(g => `${g.importDate}: ${g.count} points`));
     console.log('🔄 Setting import groups state with', importGroupsArray.length, 'groups');

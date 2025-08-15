@@ -52,6 +52,11 @@ export async function POST(request: NextRequest) {
 
     // Parse data rows
     const historicalData = [];
+    
+    // Generate a unique import ID for this batch
+    const importBatchId = new Date().toISOString();
+    console.log('🆔 Generated import batch ID:', importBatchId);
+    
     for (const row of dataRows) {
       if (!row.trim()) continue;
       
@@ -100,7 +105,7 @@ export async function POST(request: NextRequest) {
             special_events: (rowData.weather_conditions || rowData['weather_conditions'] || '').trim() || null,
             notes: (rowData.notes || rowData['notes'] || '').trim() || null,
             station_breakdown: (rowData.station_breakdown || rowData['station_breakdown'] || '{}'),
-            created_at: new Date().toISOString()
+            created_at: importBatchId
           };
 
           // Log the parsed data for debugging
@@ -135,7 +140,7 @@ export async function POST(request: NextRequest) {
             special_events: (rowData.weather_conditions || rowData['weather_conditions'] || '').trim() || null,
             notes: (rowData.notes || rowData['notes'] || '').trim() || null,
             station_breakdown: (rowData.station_breakdown || rowData['station_breakdown'] || '{}'),
-            created_at: new Date().toISOString()
+            created_at: importBatchId
           };
 
           // Log the parsed data for debugging
