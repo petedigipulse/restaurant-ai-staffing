@@ -441,6 +441,10 @@ export default function BusinessPoliciesPage() {
                 >
                   + Add Guideline
                 </button>
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 <strong>Tips:</strong> Focus on operational efficiency and service quality. Examples: "Ensure adequate coverage for all stations during peak hours", 
+                  "Balance workload across staff members", "Consider staff performance and experience levels"
+                </p>
               </div>
             </div>
             
@@ -472,6 +476,10 @@ export default function BusinessPoliciesPage() {
                 >
                   + Add Policy
                 </button>
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 <strong>Tips:</strong> Focus on balancing cost reduction with service quality. Examples: "Monitor overtime costs and minimize excessive hours", 
+                  "Balance staff costs with service quality", "Use performance data to optimize scheduling"
+                </p>
               </div>
             </div>
             
@@ -503,6 +511,10 @@ export default function BusinessPoliciesPage() {
                 >
                   + Add Requirement
                 </button>
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 <strong>Tips:</strong> Focus on legal requirements and safety standards. Examples: "Follow local labor laws and regulations", 
+                  "Ensure proper break and rest periods", "Maintain accurate time and attendance records"
+                </p>
               </div>
             </div>
 
@@ -511,38 +523,49 @@ export default function BusinessPoliciesPage() {
               <h3 className="font-medium text-gray-900 mb-4">Custom Policies</h3>
               
               {/* Add New Policy */}
-              <div className="flex gap-2 mb-4">
-                <input
-                  type="text"
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-900 mb-2">
+                  Add New Custom Policy
+                </label>
+                <textarea
                   value={newCustomPolicy}
                   onChange={(e) => setNewCustomPolicy(e.target.value)}
-                  placeholder="Enter a new custom policy..."
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                  onKeyPress={(e) => e.key === 'Enter' && addCustomPolicy()}
+                  placeholder="Enter a new custom policy that's specific to your business operations..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  rows={3}
+                  onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && addCustomPolicy()}
                 />
-                <Button
-                  onClick={addCustomPolicy}
-                  disabled={!newCustomPolicy.trim()}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-                >
-                  Add
-                </Button>
+                <p className="text-xs text-gray-500 mt-1">
+                  💡 <strong>Tips:</strong> Be specific about your business needs. Examples: "Prioritize staff with food safety certifications", 
+                  "Maintain gender balance in kitchen staff", "Rotate closing duties among senior staff"
+                </p>
+                <div className="mt-3">
+                  <Button
+                    onClick={addCustomPolicy}
+                    disabled={!newCustomPolicy.trim()}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    Add Policy
+                  </Button>
+                </div>
               </div>
 
               {/* Existing Custom Policies */}
               {businessRules.additional_policies?.custom_policies && businessRules.additional_policies.custom_policies.length > 0 ? (
-                <div className="space-y-2">
+                <div className="space-y-3">
+                  <h4 className="font-medium text-gray-900 text-sm">Existing Custom Policies:</h4>
                   {businessRules.additional_policies.custom_policies.map((policy, index) => (
-                    <div key={index} className="flex items-center gap-2 p-2 bg-white rounded border">
-                      <input
-                        type="text"
+                    <div key={index} className="flex items-start gap-2 p-3 bg-white rounded border">
+                      <textarea
                         value={policy}
                         onChange={(e) => handleCustomPolicyChange(index, e.target.value)}
-                        className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                        rows={2}
+                        placeholder="Edit your custom policy..."
                       />
                       <button
                         onClick={() => removeCustomPolicy(index)}
-                        className="px-2 py-1 text-red-600 hover:text-red-800 text-sm"
+                        className="px-2 py-1 text-red-600 hover:text-red-800 text-sm mt-1"
                       >
                         ✕
                       </button>
@@ -550,7 +573,10 @@ export default function BusinessPoliciesPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-500 italic">No custom policies added yet.</p>
+                <div className="text-center py-4">
+                  <p className="text-sm text-gray-500 italic">No custom policies added yet.</p>
+                  <p className="text-xs text-gray-400 mt-1">Add policies that are unique to your business operations</p>
+                </div>
               )}
             </div>
           </div>
