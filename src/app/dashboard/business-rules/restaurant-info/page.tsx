@@ -44,14 +44,19 @@ export default function RestaurantInfoPage() {
           // Load existing data
           const organization = await DatabaseService.getOrganizationById(orgId);
           if (organization) {
+            console.log('📥 Loaded organization data:', organization);
+            
+            // Extract data from operating_hours JSON field
+            const operatingHours = organization.operating_hours || {};
+            
             setRestaurantData({
               name: organization.name || '',
-              address: organization.address || '',
-              phone: organization.phone || '',
-              email: organization.email || '',
-              cuisine_type: organization.cuisine_type || '',
-              capacity: organization.capacity || 50,
-              opening_hours: organization.opening_hours || {
+              address: operatingHours.address || '',
+              phone: operatingHours.phone || '',
+              email: operatingHours.email || '',
+              cuisine_type: operatingHours.cuisine_type || '',
+              capacity: operatingHours.capacity || 50,
+              opening_hours: operatingHours.opening_hours || {
                 monday: { open: '09:00', close: '17:00', closed: false },
                 tuesday: { open: '09:00', close: '17:00', closed: false },
                 wednesday: { open: '09:00', close: '17:00', closed: false },
@@ -61,6 +66,8 @@ export default function RestaurantInfoPage() {
                 sunday: { open: '09:00', close: '17:00', closed: false }
               }
             });
+            
+            console.log('🔄 Transformed restaurant data:', restaurantData);
           }
         }
       } catch (error) {
@@ -101,12 +108,37 @@ export default function RestaurantInfoPage() {
     setMessage(null);
 
     try {
+      console.log('🔄 Attempting to save restaurant data:', { organizationId, restaurantData });
+      
+      // Transform the data to match the database schema
+      // The organizations table only has: id, name, type, timezone, operating_hours, created_at, updated_at, owner_id
+      const updateData = {
+        name: restaurantData.name,
+        // Note: address, phone, email, cuisine_type, capacity are not in the organizations table
+        // We need to either:
+        // 1. Update the database schema to include these fields, or
+        // 2. Store this data in a different table, or
+        // 3. Store it in the operating_hours JSON field
+        operating_hours: {
+          address: restaurantData.address,
+          phone: restaurantData.phone,
+          email: restaurantData.email,
+          cuisine_type: restaurantData.cuisine_type,
+          capacity: restaurantData.capacity,
+          opening_hours: restaurantData.opening_hours
+        }
+      };
+
+      console.log('📤 Sending update data:', updateData);
+      
       // Update organization data
-      await DatabaseService.updateOrganization(organizationId, restaurantData);
-      setMessage({ type: 'success', text: 'Restaurant information updated successfully!' });
+      const result = await DatabaseService.updateOrganization(organizationId, updateData);
+      console.log('✅ Update successful:', result);
+      
+      setMessage({ type: 'success', text: 'Business information updated successfully!' });
     } catch (error) {
-      console.error('Error updating restaurant information:', error);
-      setMessage({ type: 'error', text: 'Failed to update restaurant information' });
+      console.error('❌ Error updating business information:', error);
+      setMessage({ type: 'error', text: `Failed to update business information: ${error instanceof Error ? error.message : 'Unknown error'}` });
     } finally {
       setIsSaving(false);
     }
@@ -117,7 +149,7 @@ export default function RestaurantInfoPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading restaurant information...</p>
+          <p className="text-gray-600">Loading business information...</p>
         </div>
       </div>
     );
@@ -128,7 +160,7 @@ export default function RestaurantInfoPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">No Restaurant Data Found</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">No Business Data Found</h2>
           <p className="text-gray-600 mb-4">Please complete the setup wizard first.</p>
           <Link href="/onboarding">
             <Button>Complete Setup</Button>
@@ -150,7 +182,7 @@ export default function RestaurantInfoPage() {
                   ← Back to Business Rules
                 </Link>
               </div>
-              <h1 className="text-3xl font-bold text-gray-900">Restaurant Information</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Business Information</h1>
               <p className="text-gray-600 mt-2">Update your restaurant details and contact information</p>
             </div>
             <Button
@@ -174,7 +206,7 @@ export default function RestaurantInfoPage() {
           </div>
         )}
 
-        {/* Restaurant Information */}
+        {/* Business Information */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Basic Information</h2>
           

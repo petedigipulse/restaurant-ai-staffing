@@ -40,6 +40,39 @@ This document tracks all features, fixes, and improvements identified during dev
 **Estimated Effort:** 1-2 days
 **Priority:** 🔴 **CRITICAL**
 
+### **2. Business Information Page Data Saving**
+**Status:** 🔴 **CRITICAL - Needs Immediate Attention**
+**Issue:** Business Information page cannot save data due to database schema mismatch
+
+**Current Problem:**
+- Page tries to update fields that don't exist in `organizations` table
+- Database only has: `id`, `name`, `type`, `timezone`, `operating_hours`, `created_at`, `updated_at`, `owner_id`
+- Page tries to update: `address`, `phone`, `email`, `cuisine_type`, `capacity`, `opening_hours`
+- Data structure mismatch causes save failures
+
+**Impact:**
+- Users cannot update business information
+- Data loss when trying to save changes
+- Core functionality broken
+- Poor user experience
+
+**Proposed Solution:**
+- **Option 1 (Recommended):** Store additional data in `operating_hours` JSON field
+  - Transform data to fit existing schema
+  - Maintain backward compatibility
+  - Quick fix for immediate functionality
+- **Option 2:** Update database schema to include missing fields
+  - Add `address`, `phone`, `email`, `cuisine_type`, `capacity` columns
+  - More robust long-term solution
+  - Requires database migration
+
+**Files to Modify:**
+- `src/app/dashboard/business-rules/restaurant-info/page.tsx`
+- Database schema (if Option 2 chosen)
+
+**Estimated Effort:** 0.5-1 day
+**Priority:** 🔴 **CRITICAL**
+
 ---
 
 ## 🔧 **Medium Priority - Functionality Improvements**
@@ -220,8 +253,9 @@ This document tracks all features, fixes, and improvements identified during dev
 
 ### **This Week:**
 1. **🔴 CRITICAL:** Address Onboarding Wizard synchronization
-2. **🧪 Testing:** Verify staff CRUD operations
-3. **📊 Monitoring:** Check AI schedule generation performance
+2. **🔴 CRITICAL:** Fix Business Information page data saving
+3. **🧪 Testing:** Verify staff CRUD operations
+4. **📊 Monitoring:** Check AI schedule generation performance
 
 ### **Next Week:**
 1. **🔧 Polish:** Minor UI/UX improvements
