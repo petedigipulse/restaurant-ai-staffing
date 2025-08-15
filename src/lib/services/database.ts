@@ -693,6 +693,10 @@ export class DatabaseService {
   // Get ALL historical data for an organization (no date filtering)
   static async getAllHistoricalData(organizationId: string) {
     try {
+      // Add cache-busting timestamp to ensure we get fresh data
+      const timestamp = new Date().getTime();
+      console.log(`🔄 Fetching historical data for org ${organizationId} at ${timestamp}`);
+      
       const { data, error } = await supabase
         .from('historical_sales_data')
         .select('*')
@@ -700,6 +704,8 @@ export class DatabaseService {
         .order('created_at', { ascending: false });
 
       if (error) throw new Error(`Failed to fetch all historical data: ${error.message}`);
+      
+      console.log(`✅ Fetched ${data?.length || 0} historical records at ${timestamp}`);
       return data || [];
     } catch (error) {
       console.error('Error fetching all historical data:', error);

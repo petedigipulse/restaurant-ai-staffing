@@ -216,11 +216,32 @@ export default function HistoricalDataPage() {
         try {
           console.log('🔄 Reloading data after import...');
           
-          // Force a small delay to ensure database is updated
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Force a delay to ensure database is updated and add cache-busting
+          await new Promise(resolve => setTimeout(resolve, 2000));
           
-          const data = await DatabaseService.getAllHistoricalData(organizationId!);
-          console.log('📊 Reloaded data after import:', data?.length, 'records');
+          // Try multiple times to get the latest data
+          let data;
+          let attempts = 0;
+          const maxAttempts = 3;
+          
+          while (attempts < maxAttempts) {
+            attempts++;
+            console.log(`🔄 Attempt ${attempts} to reload data...`);
+            
+            data = await DatabaseService.getAllHistoricalData(organizationId!);
+            console.log(`📊 Reloaded data after import (attempt ${attempts}):`, data?.length, 'records');
+            
+            // Check if we have the new data
+            if (data && data.length > historicalData.length) {
+              console.log(`✅ Found new data! Old: ${historicalData.length}, New: ${data.length}`);
+              break;
+            }
+            
+            if (attempts < maxAttempts) {
+              console.log(`⏳ Waiting 1 second before attempt ${attempts + 1}...`);
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          }
           
           // Log some sample data to see what we got
           if (data && data.length > 0) {
