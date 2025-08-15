@@ -77,17 +77,17 @@ export async function POST(request: NextRequest) {
       console.log('🔍 Column values:', {
         'Total Sales ($)': rowData['Total Sales ($)'],
         'Total Sales': rowData['Total Sales'],
-        'total_sales': rowData['total_sales'],
+        total_sales: rowData['total_sales'],
         'Customer Count': rowData['Customer Count'],
-        'customer_count': rowData['customer_count'],
+        customer_count: rowData['customer_count'],
         'Weather Conditions': rowData['Weather Conditions'],
-        'weather_conditions': rowData['weather_conditions'],
+        weather_conditions: rowData['weather_conditions'],
         'Special Events': rowData['Special Events'],
-        'special_events': rowData['special_events'],
+        special_events: rowData['special_events'],
         'Notes': rowData['Notes'],
-        'notes': rowData['notes'],
+        notes: rowData['notes'],
         'Station Breakdown': rowData['Station Breakdown'],
-        'station_breakdown': rowData['station_breakdown']
+        station_breakdown: rowData['station_breakdown']
       });
       
       if (date) {
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
             special_events: (rowData.weather_conditions || rowData['weather_conditions'] || '').trim() || null,
             notes: (rowData.notes || rowData['notes'] || '').trim() || null,
             station_breakdown: (rowData.station_breakdown || rowData['station_breakdown'] || '{}'),
-            created_at: importBatchId
+            created_at: new Date(Date.now() + Math.random() * 1000).toISOString() // Add small random offset
           };
 
           // Log the parsed data for debugging
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
             special_events: (rowData.weather_conditions || rowData['weather_conditions'] || '').trim() || null,
             notes: (rowData.notes || rowData['notes'] || '').trim() || null,
             station_breakdown: (rowData.station_breakdown || rowData['station_breakdown'] || '{}'),
-            created_at: importBatchId
+            created_at: new Date(Date.now() + Math.random() * 1000).toISOString() // Add small random offset
           };
 
           // Log the parsed data for debugging
