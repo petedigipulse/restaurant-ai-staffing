@@ -57,12 +57,35 @@ export default function HistoricalDataPage() {
         console.log('🏢 Organization ID:', orgId);
         const data = await DatabaseService.getAllHistoricalData(orgId);
         console.log('📊 Loaded historical data:', data?.length, 'records');
+        
+        // Log sample data to see what we're getting
+        if (data && data.length > 0) {
+          console.log('📅 First 3 records:', data.slice(0, 3).map(d => ({
+            id: d.id,
+            date: d.date,
+            sales: d.total_sales,
+            customers: d.customer_count,
+            created: d.created_at,
+            org_id: d.organization_id
+          })));
+          
+          console.log('📅 Last 3 records:', data.slice(-3).map(d => ({
+            id: d.id,
+            date: d.date,
+            sales: d.total_sales,
+            customers: d.customer_count,
+            created: d.created_at,
+            org_id: d.organization_id
+          })));
+        }
+        
         setHistoricalData(data || []);
         
         // Group the imports
         console.log('🔄 Grouping imports...');
         const grouped = groupImportsByDate(data || []);
-        setImportGroups(grouped); // <--- THIS WAS MISSING
+        console.log('📦 Grouped result:', grouped);
+        setImportGroups(grouped);
         console.log('✅ Data loading and grouping complete');
       }
     } catch (error) {
@@ -181,17 +204,21 @@ export default function HistoricalDataPage() {
           await new Promise(resolve => setTimeout(resolve, 1000));
           
           const data = await DatabaseService.getAllHistoricalData(organizationId!);
-          console.log('📊 Reloaded data:', data?.length, 'records');
+          console.log('📊 Reloaded data after import:', data?.length, 'records');
           
           // Log some sample data to see what we got
           if (data && data.length > 0) {
-            console.log('📅 Sample data points:', data.slice(0, 3).map(d => ({
+            console.log('📅 Sample data points after import:', data.slice(0, 3).map(d => ({
               id: d.id,
               date: d.date,
               sales: d.total_sales,
               customers: d.customer_count,
               created: d.created_at
             })));
+            
+            // Check if we have the new data
+            const newDataCount = data.length - historicalData.length;
+            console.log('🆕 New data count:', newDataCount, 'records');
           }
           
           setHistoricalData(data || []);
@@ -199,6 +226,7 @@ export default function HistoricalDataPage() {
           // Regroup the data
           console.log('🔄 Regrouping imports...');
           const grouped = groupImportsByDate(data || []);
+          console.log('📦 Regrouped result:', grouped);
           setImportGroups(grouped);
           console.log('✅ Data reloaded and regrouped successfully');
           
@@ -354,6 +382,27 @@ export default function HistoricalDataPage() {
                     className="text-sm px-3 py-1"
                   >
                     🔄 Refresh Display
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={async () => {
+                      console.log('🔍 Manual database check...');
+                      if (organizationId) {
+                        try {
+                          const data = await DatabaseService.getAllHistoricalData(organizationId);
+                          console.log('🔍 Database check result:', {
+                            totalRecords: data?.length,
+                            sampleRecords: data?.slice(0, 3),
+                            lastRecords: data?.slice(-3)
+                          });
+                        } catch (error) {
+                          console.error('🔍 Database check failed:', error);
+                        }
+                      }
+                    }}
+                    className="text-sm px-3 py-1"
+                  >
+                    🔍 Check DB
                   </Button>
                 </div>
               )}
