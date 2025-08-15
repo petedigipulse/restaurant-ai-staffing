@@ -166,12 +166,12 @@ function OnboardingPageContent() {
   });
 
   const steps = [
-    { id: 'restaurant', title: 'Restaurant Basics', description: 'Basic information about your restaurant' },
-    { id: 'staff', title: 'Staff Setup', description: 'Add your team members and their details' },
-    { id: 'business-rules', title: 'Business Rules', description: 'Set constraints and requirements' },
-    { id: 'historical-data', title: 'Historical Data', description: 'Import sales and customer data' },
-    { id: 'goals', title: 'Goals & Preferences', description: 'Define your scheduling priorities' },
-    { id: 'complete', title: 'Complete Setup', description: 'Review and finish setup' }
+    { id: 'restaurant', title: '1. Business Information', description: 'Basic information about your restaurant' },
+    { id: 'staff', title: '2. Staff Setup', description: 'Add your team members and their details' },
+    { id: 'business-rules', title: '3. Business Rules', description: 'Set constraints and requirements' },
+    { id: 'historical-data', title: '4. Historical Data', description: 'Import sales and customer data' },
+    { id: 'goals', title: '5. Goals & Preferences', description: 'Define your scheduling priorities' },
+    { id: 'complete', title: '6. Complete Setup', description: 'Review and finish setup' }
   ];
 
   // Load existing data when component mounts
@@ -257,6 +257,13 @@ function OnboardingPageContent() {
     const legacyData = TransformationService.unifiedToOnboarding(unifiedData);
     setFormData(legacyData);
   };
+
+  // Ensure formData is always in sync with unifiedData
+  useEffect(() => {
+    if (unifiedData && Object.keys(unifiedData).length > 0) {
+      updateLegacyFormData();
+    }
+  }, [unifiedData]);
 
   const updateFormData = (section: string, data: any) => {
     setFormData(prev => {
@@ -524,19 +531,71 @@ function OnboardingPageContent() {
   };
 
   const renderStepContent = () => {
+    // Ensure we have valid data before rendering
+    const safeFormData = {
+      restaurant: {
+        name: formData.restaurant?.name || '',
+        type: formData.restaurant?.type || 'restaurant',
+        timezone: formData.restaurant?.timezone || 'America/New_York',
+        operatingHours: formData.restaurant?.operatingHours || {
+          monday: { open: '09:00', close: '22:00', closed: false },
+          tuesday: { open: '09:00', close: '22:00', closed: false },
+          wednesday: { open: '09:00', close: '22:00', closed: false },
+          thursday: { open: '09:00', close: '22:00', closed: false },
+          friday: { open: '09:00', close: '23:00', closed: false },
+          saturday: { open: '09:00', close: '23:00', closed: false },
+          sunday: { open: '10:00', close: '21:00', closed: false }
+        }
+      },
+      staff: formData.staff || [],
+      businessRules: formData.businessRules || {
+        minStaffing: { kitchen: 2, foh: 3, bar: 1 },
+        maxOvertime: 40,
+        breakRequirements: { meal: 30, rest: 10 },
+        targetLaborCost: 25,
+        consecutiveDays: 6,
+        minShiftLength: 4,
+        maxShiftLength: 12,
+        weekendRotation: true,
+        holidayPay: true
+      },
+      historicalData: formData.historicalData || {
+        averageDailySales: 0,
+        peakHours: [],
+        seasonalPatterns: [],
+        salesData: [],
+        customerPatterns: {
+          weekday: 0,
+          weekend: 0,
+          lunch: 0,
+          dinner: 0
+        }
+      },
+      goals: formData.goals || {
+        priority: 'cost-optimization',
+        staffSatisfaction: 8,
+        customerService: 9,
+        costOptimization: 8,
+        flexibility: 7,
+        training: 6,
+        specialEvents: [],
+        schedulingPreferences: []
+      }
+    };
+
     switch (currentStep) {
       case 'restaurant':
-        return <RestaurantStep data={formData.restaurant} updateData={(data) => updateFormData('restaurant', data)} />;
+        return <RestaurantStep data={safeFormData.restaurant} updateData={(data) => updateFormData('restaurant', data)} />;
       case 'staff':
-        return <StaffStep data={formData.staff} updateData={(data) => updateFormData('staff', data)} />;
+        return <StaffStep data={safeFormData.staff} updateData={(data) => updateFormData('staff', data)} />;
       case 'business-rules':
-        return <BusinessRulesStep data={formData.businessRules} updateData={(data) => updateFormData('businessRules', data)} />;
+        return <BusinessRulesStep data={safeFormData.businessRules} updateData={(data) => updateFormData('businessRules', data)} />;
       case 'historical-data':
-        return <HistoricalDataStep data={formData.historicalData} updateData={(data) => updateFormData('historicalData', data)} />;
+        return <HistoricalDataStep data={safeFormData.historicalData} updateData={(data) => updateFormData('historicalData', data)} />;
       case 'goals':
-        return <GoalsStep data={formData.goals} updateData={(data) => updateFormData('goals', data)} />;
+        return <GoalsStep data={safeFormData.goals} updateData={(data) => updateFormData('goals', data)} />;
       case 'complete':
-        return <CompleteStep data={formData} />;
+        return <CompleteStep data={safeFormData} />;
       default:
         return null;
     }
@@ -585,6 +644,26 @@ function OnboardingPageContent() {
           <div className="text-center">
             <h2 className="text-xl font-semibold">{steps.find(s => s.id === currentStep)?.title}</h2>
             <p className="text-muted-foreground">{steps.find(s => s.id === currentStep)?.description}</p>
+          </div>
+          
+          {/* Step Navigation */}
+          <div className="mt-4 flex justify-center">
+            <div className="flex space-x-2">
+              {steps.map((step, index) => (
+                <button
+                  key={step.id}
+                  onClick={() => setCurrentStep(step.id as OnboardingStep)}
+                  className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                    currentStep === step.id
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                  title={`Go to ${step.title}`}
+                >
+                  {step.title}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
