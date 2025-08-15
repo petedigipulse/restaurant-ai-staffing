@@ -94,12 +94,12 @@ export async function POST(request: NextRequest) {
             organization_id: organizationId,
             date: date,
             time: time || '12:00:00',
-            total_sales: parseFloat(rowData['Total Sales ($)'] || rowData['Total Sales'] || rowData['total_sales'] || rowData['TOTAL_SALES'] || '0') || 0,
-            customer_count: parseInt(rowData['Customer Count'] || rowData['customer_count'] || rowData['CUSTOMER_COUNT'] || '0') || 0,
-            weather_conditions: (rowData['Weather Conditions'] || rowData['weather_conditions'] || '').trim() || null,
-            special_events: (rowData['Special Events'] || rowData['special_events'] || '').trim() || null,
-            notes: (rowData['Notes'] || rowData['notes'] || '').trim() || null,
-            station_breakdown: (rowData['Station Breakdown'] || rowData['station_breakdown'] || '{}'),
+            total_sales: parseFloat(rowData.total_sales || rowData['total_sales'] || '0') || 0,
+            customer_count: parseInt(rowData.customer_count || rowData['customer_count'] || '0') || 0,
+            weather_conditions: (rowData.special_events || rowData['special_events'] || '').trim() || null,
+            special_events: (rowData.weather_conditions || rowData['weather_conditions'] || '').trim() || null,
+            notes: (rowData.notes || rowData['notes'] || '').trim() || null,
+            station_breakdown: (rowData.station_breakdown || rowData['station_breakdown'] || '{}'),
             created_at: new Date().toISOString()
           };
 
@@ -129,12 +129,12 @@ export async function POST(request: NextRequest) {
             organization_id: organizationId,
             date: date,
             time: time || '12:00:00',
-            total_sales: parseFloat(rowData['Total Sales ($)'] || rowData['Total Sales'] || rowData['total_sales'] || rowData['TOTAL_SALES'] || '0') || 0,
-            customer_count: parseInt(rowData['Customer Count'] || rowData['customer_count'] || rowData['CUSTOMER_COUNT'] || '0') || 0,
-            weather_conditions: (rowData['Weather Conditions'] || rowData['weather_conditions'] || '').trim() || null,
-            special_events: (rowData['Special Events'] || rowData['special_events'] || '').trim() || null,
-            notes: (rowData['Notes'] || rowData['notes'] || '').trim() || null,
-            station_breakdown: (rowData['Station Breakdown'] || rowData['station_breakdown'] || '{}'),
+            total_sales: parseFloat(rowData.total_sales || rowData['total_sales'] || '0') || 0,
+            customer_count: parseInt(rowData.customer_count || rowData['customer_count'] || '0') || 0,
+            weather_conditions: (rowData.special_events || rowData['special_events'] || '').trim() || null,
+            special_events: (rowData.weather_conditions || rowData['weather_conditions'] || '').trim() || null,
+            notes: (rowData.notes || rowData['notes'] || '').trim() || null,
+            station_breakdown: (rowData.station_breakdown || rowData['station_breakdown'] || '{}'),
             created_at: new Date().toISOString()
           };
 
