@@ -239,11 +239,26 @@ export default function BusinessPoliciesPage() {
         additional_policies: businessRules.additional_policies || {}
       };
 
+      console.log('🔄 Saving business rules:', { organizationId, rulesData });
+
       // Update business rules
-      await DatabaseService.updateBusinessRulesByOrganization(organizationId, rulesData);
+      const result = await DatabaseService.updateBusinessRulesByOrganization(organizationId, rulesData);
+      
+      console.log('✅ Business rules saved successfully:', result);
       setMessage({ type: 'success', text: 'Business rules updated successfully!' });
+      
+      // Verify the data was saved by fetching it back
+      setTimeout(async () => {
+        try {
+          const verification = await DatabaseService.getBusinessRules(organizationId);
+          console.log('🔍 Verification - Retrieved business rules:', verification);
+        } catch (error) {
+          console.error('❌ Verification failed:', error);
+        }
+      }, 1000);
+      
     } catch (error) {
-      console.error('Error updating business rules:', error);
+      console.error('❌ Error updating business rules:', error);
       setMessage({ type: 'error', text: 'Failed to update business rules' });
     } finally {
       setIsSaving(false);
@@ -416,23 +431,25 @@ export default function BusinessPoliciesPage() {
             {/* Staffing Guidelines */}
             <div className="p-4 bg-gray-50 rounded-lg">
               <h3 className="font-medium text-gray-900 mb-3">Staffing Guidelines</h3>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {businessRules.additional_policies?.staffing_guidelines?.map((policy, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <span className="text-gray-500">•</span>
-                    <input
-                      type="text"
-                      value={policy}
-                      onChange={(e) => handlePolicyChange('staffing_guidelines', index, e.target.value)}
-                      className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
-                      placeholder="Enter staffing guideline..."
-                    />
-                    <button
-                      onClick={() => removePolicy('staffing_guidelines', index)}
-                      className="px-2 py-1 text-red-600 hover:text-red-800 text-sm"
-                    >
-                      ✕
-                    </button>
+                  <div key={index} className="space-y-2">
+                    <div className="flex items-start gap-2">
+                      <span className="text-gray-500 mt-2">•</span>
+                      <textarea
+                        value={policy}
+                        onChange={(e) => handlePolicyChange('staffing_guidelines', index, e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                        rows={3}
+                        placeholder="Enter staffing guideline..."
+                      />
+                      <button
+                        onClick={() => removePolicy('staffing_guidelines', index)}
+                        className="px-2 py-1 text-red-600 hover:text-red-800 text-sm mt-2"
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
                 ))}
                 <button
@@ -451,23 +468,25 @@ export default function BusinessPoliciesPage() {
             {/* Cost Optimization */}
             <div className="p-4 bg-gray-50 rounded-lg">
               <h3 className="font-medium text-gray-900 mb-3">Cost Optimization</h3>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {businessRules.additional_policies?.cost_optimization?.map((policy, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <span className="text-gray-500">•</span>
-                    <input
-                      type="text"
-                      value={policy}
-                      onChange={(e) => handlePolicyChange('cost_optimization', index, e.target.value)}
-                      className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
-                      placeholder="Enter cost optimization policy..."
-                    />
-                    <button
-                      onClick={() => removePolicy('cost_optimization', index)}
-                      className="px-2 py-1 text-red-600 hover:text-red-800 text-sm"
-                    >
-                      ✕
-                    </button>
+                  <div key={index} className="space-y-2">
+                    <div className="flex items-start gap-2">
+                      <span className="text-gray-500 mt-2">•</span>
+                      <textarea
+                        value={policy}
+                        onChange={(e) => handlePolicyChange('cost_optimization', index, e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                        rows={3}
+                        placeholder="Enter cost optimization policy..."
+                      />
+                      <button
+                        onClick={() => removePolicy('cost_optimization', index)}
+                        className="px-2 py-1 text-red-600 hover:text-red-800 text-sm mt-2"
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
                 ))}
                 <button
@@ -486,23 +505,25 @@ export default function BusinessPoliciesPage() {
             {/* Compliance Requirements */}
             <div className="p-4 bg-gray-50 rounded-lg">
               <h3 className="font-medium text-gray-900 mb-3">Compliance Requirements</h3>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {businessRules.additional_policies?.compliance_requirements?.map((policy, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <span className="text-gray-500">•</span>
-                    <input
-                      type="text"
-                      value={policy}
-                      onChange={(e) => handlePolicyChange('compliance_requirements', index, e.target.value)}
-                      className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
-                      placeholder="Enter compliance requirement..."
-                    />
-                    <button
-                      onClick={() => removePolicy('compliance_requirements', index)}
-                      className="px-2 py-1 text-red-600 hover:text-red-800 text-sm"
-                    >
-                      ✕
-                    </button>
+                  <div key={index} className="space-y-2">
+                    <div className="flex items-start gap-2">
+                      <span className="text-gray-500 mt-2">•</span>
+                      <textarea
+                        value={policy}
+                        onChange={(e) => handlePolicyChange('compliance_requirements', index, e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                        rows={3}
+                        placeholder="Enter compliance requirement..."
+                      />
+                      <button
+                        onClick={() => removePolicy('compliance_requirements', index)}
+                        className="px-2 py-1 text-red-600 hover:text-red-800 text-sm mt-2"
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
                 ))}
                 <button
@@ -601,6 +622,23 @@ export default function BusinessPoliciesPage() {
                 👥 Manage Staff
               </Button>
             </Link>
+            <Button 
+              onClick={async () => {
+                if (!organizationId) return;
+                try {
+                  console.log('🧪 Testing data retrieval...');
+                  const rules = await DatabaseService.getBusinessRules(organizationId);
+                  console.log('📊 Retrieved business rules:', rules);
+                  alert(`Data retrieved successfully! Check console for details.\n\nAdditional Policies: ${JSON.stringify(rules?.additional_policies, null, 2)}`);
+                } catch (error) {
+                  console.error('❌ Test failed:', error);
+                  alert(`Test failed: ${error}`);
+                }
+              }}
+              className="bg-yellow-600 hover:bg-yellow-700"
+            >
+              🧪 Test Data
+            </Button>
           </div>
         </div>
       </div>
