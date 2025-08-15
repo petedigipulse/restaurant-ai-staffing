@@ -3,11 +3,21 @@ import { DatabaseService } from '@/lib/services/database';
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🔄 CSV import API called');
+    
     const formData = await request.formData();
     const csvFile = formData.get('csv') as File;
     const organizationId = formData.get('organizationId') as string;
 
+    console.log('📋 Form data received:', {
+      hasFile: !!csvFile,
+      fileName: csvFile?.name,
+      fileSize: csvFile?.size,
+      organizationId
+    });
+
     if (!csvFile || !organizationId) {
+      console.log('❌ Missing required data:', { hasFile: !!csvFile, organizationId });
       return NextResponse.json(
         { error: 'Missing CSV file or organization ID' },
         { status: 400 }
@@ -18,7 +28,15 @@ export async function POST(request: NextRequest) {
     const csvText = await csvFile.text();
     const lines = csvText.split('\n').filter(line => line.trim());
     
+    console.log('📊 CSV parsing:', {
+      totalLines: lines.length,
+      headerLine: lines[0],
+      firstDataLine: lines[1],
+      lastDataLine: lines[lines.length - 1]
+    });
+    
     if (lines.length < 2) {
+      console.log('❌ CSV too short:', lines.length, 'lines');
       return NextResponse.json(
         { error: 'CSV file must have at least a header row and one data row' },
         { status: 400 }
@@ -78,9 +96,10 @@ export async function POST(request: NextRequest) {
           // Add all valid data (don't filter out 0 sales/customers as they might be valid)
           if (cleanData.date) {
             historicalData.push(cleanData);
+            console.log('✅ Added to historicalData array, total count:', historicalData.length);
           }
         } catch (error) {
-          console.error('Error fetching weather data for date:', date, error);
+          console.error('❌ Error processing row:', error);
           // Continue without weather data
           const cleanData = {
             organization_id: organizationId,
@@ -104,6 +123,7 @@ export async function POST(request: NextRequest) {
           // Add all valid data (don't filter out 0 sales/customers as they might be valid)
           if (cleanData.date) {
             historicalData.push(cleanData);
+            console.log('✅ Added to historicalData array (no weather), total count:', historicalData.length);
           }
         }
       }
@@ -130,9 +150,13 @@ export async function POST(request: NextRequest) {
 
     // Save to database
     try {
+      console.log('💾 Saving to database...');
+      console.log('📦 Data to save:', historicalData.length, 'records');
+      
       // Use the new CSV import method instead of onboarding method
       const result = await DatabaseService.importHistoricalDataFromCSV(organizationId, historicalData);
       
+      console.log('✅ Database save result:', result);
       console.log(`✅ Successfully imported ${historicalData.length} historical data points`);
 
       return NextResponse.json({
@@ -144,7 +168,13 @@ export async function POST(request: NextRequest) {
         hasConflicts: result.conflicts?.hasConflicts || false
       });
     } catch (dbError: any) {
-      console.error('Error saving historical data:', dbError);
+      console.error('❌ Database save error:', dbError);
+      console.error('❌ Error details:', {
+        message: dbError.message,
+        stack: dbError.stack,
+        organizationId,
+        recordCount: historicalData.length
+      });
       return NextResponse.json(
         { error: `Failed to save data: ${dbError.message}` },
         { status: 500 }
