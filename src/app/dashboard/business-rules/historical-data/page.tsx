@@ -243,6 +243,18 @@ export default function HistoricalDataPage() {
             }
           }
           
+          // Debug: Check what's actually in the database
+          console.log('🔍 Debug: Checking database directly...');
+          try {
+            const response = await fetch(`/api/historical-data/debug?organizationId=${organizationId}`);
+            if (response.ok) {
+              const debugData = await response.json();
+              console.log('🔍 Debug database result:', debugData);
+            }
+          } catch (debugError) {
+            console.error('🔍 Debug check failed:', debugError);
+          }
+          
           // Log some sample data to see what we got
           if (data && data.length > 0) {
             console.log('📅 Sample data points after import:', data.slice(0, 3).map(d => ({
