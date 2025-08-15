@@ -47,6 +47,25 @@ CREATE TABLE business_rules (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create roles_stations table for customizable roles and stations
+CREATE TABLE roles_stations (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(50) NOT NULL CHECK (type IN ('role', 'station')),
+    description TEXT,
+    default_hourly_wage DECIMAL(8,2) DEFAULT 25.00,
+    min_staffing_level INTEGER DEFAULT 1,
+    max_staffing_level INTEGER DEFAULT 5,
+    required_skills TEXT[],
+    color VARCHAR(7) DEFAULT '#3B82F6', -- Hex color for UI display
+    is_active BOOLEAN DEFAULT true,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(organization_id, name, type)
+);
+
 -- Create schedules table
 CREATE TABLE schedules (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -92,6 +111,9 @@ CREATE INDEX idx_staff_members_organization_id ON staff_members(organization_id)
 CREATE INDEX idx_staff_members_email ON staff_members(email);
 CREATE INDEX idx_staff_members_status ON staff_members(status);
 CREATE INDEX idx_business_rules_organization_id ON business_rules(organization_id);
+CREATE INDEX idx_roles_stations_organization_id ON roles_stations(organization_id);
+CREATE INDEX idx_roles_stations_type ON roles_stations(type);
+CREATE INDEX idx_roles_stations_active ON roles_stations(is_active);
 CREATE INDEX idx_schedules_organization_id ON schedules(organization_id);
 CREATE INDEX idx_schedules_week_start_date ON schedules(week_start_date);
 CREATE INDEX idx_performance_metrics_organization_id ON performance_metrics(organization_id);
@@ -137,13 +159,13 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Apply updated_at triggers
-CREATE TRIGGER update_organizations_updated_at BEFORE UPDATE ON organizations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_staff_members_updated_at BEFORE UPDATE ON staff_members FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Create triggers for updated_at columns
 CREATE TRIGGER update_business_rules_updated_at BEFORE UPDATE ON business_rules FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_roles_stations_updated_at BEFORE UPDATE ON roles_stations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_schedules_updated_at BEFORE UPDATE ON schedules FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_integrations_updated_at BEFORE UPDATE ON integrations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_historical_sales_updated_at BEFORE UPDATE ON historical_sales_data FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_organizations_updated_at BEFORE UPDATE ON organizations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_staff_members_updated_at BEFORE UPDATE ON staff_members FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
@@ -153,6 +175,15 @@ ALTER TABLE schedules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE performance_metrics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE integrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE historical_sales_data ENABLE ROW LEVEL SECURITY;
+
+-- Enable RLS on business_rules
+ALTER TABLE business_rules ENABLE ROW LEVEL SECURITY;
+
+-- Enable RLS on roles_stations
+ALTER TABLE roles_stations ENABLE ROW LEVEL SECURITY;
+
+-- Enable RLS on schedules
+ALTER TABLE schedules ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies
 -- Organizations: Users can only access their own organization
@@ -312,13 +343,97 @@ CREATE POLICY "Users can update integrations in own organization" ON integration
         )
     );
 
+-- Create RLS policies
+-- Users can view business rules in own organization
+CREATE POLICY "Users can view business rules in own organization" ON business_rules
+    FOR SELECT USING (
+        organization_id IN (
+            SELECT id FROM organizations 
+            WHERE owner_id IN (
+                SELECT id FROM users WHERE email = auth.jwt() ->> 'email'
+            )
+        )
+    );
+
+-- Users can insert business rules in own organization
+CREATE POLICY "Users can insert business rules in own organization" ON business_rules
+    FOR INSERT WITH CHECK (
+        organization_id IN (
+            SELECT id FROM organizations 
+            WHERE owner_id IN (
+                SELECT id FROM users WHERE email = auth.jwt() ->> 'email'
+            )
+        )
+    );
+
+-- Users can update business rules in own organization
+CREATE POLICY "Users can update business rules in own organization" ON business_rules
+    FOR UPDATE USING (
+        organization_id IN (
+            SELECT id FROM organizations 
+            WHERE owner_id IN (
+                SELECT id FROM users WHERE email = auth.jwt() ->> 'email'
+            )
+        )
+    );
+
+-- Users can view roles and stations in own organization
+CREATE POLICY "Users can view roles and stations in own organization" ON roles_stations
+    FOR SELECT USING (
+        organization_id IN (
+            SELECT id FROM organizations 
+            WHERE owner_id IN (
+                SELECT id FROM users WHERE email = auth.jwt() ->> 'email'
+            )
+        )
+    );
+
+-- Users can insert roles and stations in own organization
+CREATE POLICY "Users can insert roles and stations in own organization" ON roles_stations
+    FOR INSERT WITH CHECK (
+        organization_id IN (
+            SELECT id FROM organizations 
+            WHERE owner_id IN (
+                SELECT id FROM users WHERE email = auth.jwt() ->> 'email'
+            )
+        )
+    );
+
+-- Users can update roles and stations in own organization
+CREATE POLICY "Users can update roles and stations in own organization" ON roles_stations
+    FOR UPDATE USING (
+        organization_id IN (
+            SELECT id FROM organizations 
+            WHERE owner_id IN (
+                SELECT id FROM users WHERE email = auth.jwt() ->> 'email'
+            )
+        )
+    );
+
+-- Users can delete roles and stations in own organization
+CREATE POLICY "Users can delete roles and stations in own organization" ON roles_stations
+    FOR DELETE USING (
+        organization_id IN (
+            SELECT id FROM organizations 
+            WHERE owner_id IN (
+                SELECT id FROM users WHERE email = auth.jwt() ->> 'email'
+            )
+        )
+    );
+
 -- Insert sample data for testing
 INSERT INTO organizations (id, name, type, timezone, operating_hours, owner_id) VALUES
-(
-    '550e8400-e29b-41d4-a716-446655440000',
-    'Sample Restaurant',
-    'Restaurant',
-    'Pacific/Auckland',
-    '{"monday": {"open": "09:00", "close": "22:00"}, "tuesday": {"open": "09:00", "close": "22:00"}, "wednesday": {"open": "09:00", "close": "22:00"}, "thursday": {"open": "09:00", "close": "22:00"}, "friday": {"open": "09:00", "close": "23:00"}, "saturday": {"open": "10:00", "close": "23:00"}, "sunday": {"open": "10:00", "close": "21:00"}}',
-    '550e8400-e29b-41d4-a716-446655440001'
-);
+    ('550e8400-e29b-41d4-a716-446655440000', 'Sample Restaurant', 'restaurant', 'America/New_York', '{"monday": {"open": "09:00", "close": "22:00"}, "tuesday": {"open": "09:00", "close": "22:00"}}', '550e8400-e29b-41d4-a716-446655440001');
+
+-- Insert sample roles and stations
+INSERT INTO roles_stations (organization_id, name, type, description, default_hourly_wage, min_staffing_level, max_staffing_level, required_skills, color, sort_order) VALUES
+    ('550e8400-e29b-41d4-a716-446655440000', 'Kitchen', 'station', 'Food preparation and cooking area', 25.00, 2, 5, ARRAY['cooking', 'food safety', 'kitchen operations'], '#EF4444', 1),
+    ('550e8400-e29b-41d4-a716-446655440000', 'Front of House', 'station', 'Customer service and dining area', 20.00, 2, 6, ARRAY['customer service', 'communication', 'point of sale'], '#3B82F6', 2),
+    ('550e8400-e29b-41d4-a716-446655440000', 'Bar', 'station', 'Beverage service and bar area', 22.00, 1, 3, ARRAY['bartending', 'alcohol service', 'customer service'], '#8B5CF6', 3),
+    ('550e8400-e29b-41d4-a716-446655440000', 'Host', 'station', 'Greeting and seating guests', 18.00, 1, 2, ARRAY['customer service', 'organization', 'communication'], '#10B981', 4),
+    ('550e8400-e29b-41d4-a716-446655440000', 'Head Chef', 'role', 'Kitchen leadership and menu planning', 35.00, 1, 1, ARRAY['leadership', 'menu planning', 'kitchen management'], '#F59E0B', 5),
+    ('550e8400-e29b-41d4-a716-446655440000', 'Sous Chef', 'role', 'Kitchen supervision and food preparation', 28.00, 1, 2, ARRAY['cooking', 'supervision', 'food safety'], '#F97316', 6),
+    ('550e8400-e29b-41d4-a716-446655440000', 'Line Cook', 'role', 'Food preparation and cooking', 22.00, 1, 4, ARRAY['cooking', 'food safety', 'kitchen operations'], '#DC2626', 7),
+    ('550e8400-e29b-41d4-a716-446655440000', 'Server', 'role', 'Customer service and food delivery', 18.00, 2, 6, ARRAY['customer service', 'communication', 'point of sale'], '#2563EB', 8),
+    ('550e8400-e29b-41d4-a716-446655440000', 'Bartender', 'role', 'Beverage preparation and service', 20.00, 1, 3, ARRAY['bartending', 'alcohol service', 'customer service'], '#7C3AED', 9),
+    ('550e8400-e29b-41d4-a716-446655440000', 'Host/Hostess', 'role', 'Guest greeting and seating management', 16.00, 1, 2, ARRAY['customer service', 'organization', 'communication'], '#059669', 10);

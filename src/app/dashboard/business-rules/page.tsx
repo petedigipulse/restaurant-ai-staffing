@@ -100,6 +100,15 @@ export default function BusinessRulesPage() {
           lastUpdated: businessRules?.updated_at
         },
         {
+          id: 'roles-stations',
+          title: 'Roles & Stations Management',
+          description: 'Define and customize staff roles, stations, and requirements',
+          icon: '🎭',
+          href: '/dashboard/business-rules/roles-stations',
+          status: 'not-started', // Will be updated when we implement this
+          lastUpdated: undefined
+        },
+        {
           id: 'goals-preferences',
           title: 'Goals & Preferences',
           description: 'Business objectives, cost targets, and scheduling preferences',
