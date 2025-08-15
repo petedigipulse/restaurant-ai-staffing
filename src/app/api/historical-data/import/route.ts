@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
       const time = rowData.time || rowData.Time || rowData.TIME || rowData.time || rowData.Time;
       
       console.log('📅 Processing row:', { date, time, rowData });
+      console.log('🔍 Available columns:', Object.keys(rowData));
       
       if (date) {
         try {
@@ -80,7 +81,7 @@ export async function POST(request: NextRequest) {
             time: time || '12:00:00',
             total_sales: parseFloat(rowData['Total Sales ($)'] || rowData['Total Sales'] || rowData['total_sales'] || rowData['TOTAL_SALES'] || '0') || 0,
             customer_count: parseInt(rowData['Customer Count'] || rowData['customer_count'] || rowData['CUSTOMER_COUNT'] || '0') || 0,
-            weather_conditions: (rowData['Weather Conditions'] || rowData['weather_conditions'] || weatherData.conditions || '').trim() || null,
+            weather_conditions: (rowData['Weather Conditions'] || rowData['weather_conditions'] || '').trim() || null,
             special_events: (rowData['Special Events'] || rowData['special_events'] || '').trim() || null,
             notes: (rowData['Notes'] || rowData['notes'] || '').trim() || null,
             station_breakdown: (rowData['Station Breakdown'] || rowData['station_breakdown'] || '{}'),
@@ -90,7 +91,15 @@ export async function POST(request: NextRequest) {
           // Log the parsed data for debugging
           console.log('📊 Parsed CSV row:', {
             original: rowData,
-            parsed: cleanData
+            parsed: cleanData,
+            columnMapping: {
+              'Total Sales ($)': rowData['Total Sales ($)'],
+              'Customer Count': rowData['Customer Count'],
+              'Weather Conditions': rowData['Weather Conditions'],
+              'Special Events': rowData['Special Events'],
+              'Notes': rowData['Notes'],
+              'Station Breakdown': rowData['Station Breakdown']
+            }
           });
 
           // Add all valid data (don't filter out 0 sales/customers as they might be valid)

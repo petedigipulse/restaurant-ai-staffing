@@ -99,36 +99,51 @@ export default function HistoricalDataPage() {
   const groupImportsByDate = (data: HistoricalDataPoint[]) => {
     console.log('🔄 Grouping imports for', data.length, 'data points');
     
-    // Group data by import date (created_at date)
+    // Group data by import batch (created_at timestamp rounded to nearest minute)
     const groups = new Map<string, HistoricalDataPoint[]>();
     
     data.forEach((point, index) => {
-      const importDate = new Date(point.created_at).toDateString();
-      if (!groups.has(importDate)) {
-        groups.set(importDate, []);
+      // Round to nearest minute to group imports that happen close together
+      const importTime = new Date(point.created_at);
+      const roundedTime = new Date(importTime.getFullYear(), importTime.getMonth(), importTime.getDate(), 
+                                  importTime.getHours(), importTime.getMinutes());
+      const importKey = roundedTime.toISOString();
+      
+      if (!groups.has(importKey)) {
+        groups.set(importKey, []);
       }
-      groups.get(importDate)!.push(point);
+      groups.get(importKey)!.push(point);
       
       // Log first few points for debugging
       if (index < 3) {
-        console.log(`📅 Point ${index}: date=${point.date}, created_at=${point.created_at}, importDate=${importDate}`);
+        console.log(`📅 Point ${index}: date=${point.date}, created_at=${point.created_at}, importKey=${importKey}`);
       }
     });
 
     console.log('📊 Found', groups.size, 'import groups');
 
     // Convert to ImportGroup array
-    const importGroupsArray: ImportGroup[] = Array.from(groups.entries()).map(([date, points]) => {
+    const importGroupsArray: ImportGroup[] = Array.from(groups.entries()).map(([importKey, points]) => {
       const sortedPoints = points.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       const totalSales = points.reduce((sum, point) => sum + (point.total_sales || 0), 0);
       const totalCustomers = points.reduce((sum, point) => sum + (point.customer_count || 0), 0);
       const dateRange = `${sortedPoints[0]?.date} to ${sortedPoints[sortedPoints.length - 1]?.date}`;
       
-      console.log(`📈 Group ${date}: ${points.length} points, sales: $${totalSales}, customers: ${totalCustomers}`);
+      // Format the import time for display
+      const importTime = new Date(importKey);
+      const importDateDisplay = importTime.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      console.log(`📈 Group ${importDateDisplay}: ${points.length} points, sales: $${totalSales}, customers: ${totalCustomers}`);
       
       return {
-        id: date,
-        importDate: date,
+        id: importKey,
+        importDate: importDateDisplay,
         dataPoints: sortedPoints,
         totalSales,
         totalCustomers,
@@ -137,8 +152,8 @@ export default function HistoricalDataPage() {
       };
     });
 
-    // Sort by import date (newest first)
-    importGroupsArray.sort((a, b) => new Date(b.importDate).getTime() - new Date(a.importDate).getTime());
+    // Sort by import time (newest first)
+    importGroupsArray.sort((a, b) => new Date(a.id).getTime() - new Date(b.id).getTime());
     
     console.log('✅ Final import groups:', importGroupsArray.map(g => `${g.importDate}: ${g.count} points`));
     console.log('🔄 Setting import groups state with', importGroupsArray.length, 'groups');
