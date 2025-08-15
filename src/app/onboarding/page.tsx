@@ -1,11 +1,14 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 import Link from "next/link";
 import { useSession, SessionProvider } from "next-auth/react";
 import { DatabaseService } from "@/lib/services/database";
+import { TransformationService } from "@/lib/services/transformation";
+import { UnifiedBusinessData } from "@/lib/types/unified";
 
 type OnboardingStep = 'restaurant' | 'staff' | 'business-rules' | 'historical-data' | 'goals' | 'complete';
 
+// Legacy interface for backward compatibility during transition
 interface OnboardingStaffMember {
   id: string;
   firstName: string;
@@ -43,6 +46,74 @@ function OnboardingPageContent() {
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('restaurant');
   const [isLoading, setIsLoading] = useState(false);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [unifiedData, setUnifiedData] = useState<UnifiedBusinessData>({
+    organization: {
+      name: '',
+      type: 'restaurant',
+      timezone: 'America/New_York',
+      operating_hours: {
+        monday: { open: '09:00', close: '22:00', closed: false },
+        tuesday: { open: '09:00', close: '22:00', closed: false },
+        wednesday: { open: '09:00', close: '22:00', closed: false },
+        thursday: { open: '09:00', close: '22:00', closed: false },
+        friday: { open: '09:00', close: '23:00', closed: false },
+        saturday: { open: '09:00', close: '23:00', closed: false },
+        sunday: { open: '10:00', close: '21:00', closed: false }
+      }
+    },
+    staff: [],
+    business_rules: {
+      min_staffing: { kitchen: 2, front_of_house: 3, bar: 1, host: 1 },
+      max_overtime: 40,
+      target_labor_cost: 25,
+      break_requirements: { meal: 30, rest: 10 },
+      consecutive_days: 6,
+      min_shift_length: 4,
+      max_shift_length: 12,
+      weekend_rotation: true,
+      holiday_pay: true,
+      additional_policies: {
+        staffing_guidelines: [
+          'Ensure adequate coverage for all stations during peak hours',
+          'Balance workload across staff members',
+          'Consider staff performance and experience levels'
+        ],
+        cost_optimization: [
+          'Monitor overtime costs and minimize excessive hours',
+          'Balance staff costs with service quality'
+        ],
+        compliance_requirements: [
+          'Follow local labor laws and regulations',
+          'Ensure proper break and rest periods'
+        ],
+        custom_policies: []
+      }
+    },
+    historical_data: {
+      average_daily_sales: 0,
+      peak_hours: [],
+      seasonal_patterns: [],
+      sales_data: [],
+      customer_patterns: {
+        weekday: 0,
+        weekend: 0,
+        lunch: 0,
+        dinner: 0
+      }
+    },
+    goals: {
+      priority: 'cost-optimization',
+      staff_satisfaction: 8,
+      customer_service: 9,
+      cost_optimization: 8,
+      flexibility: 7,
+      training: 6,
+      special_events: [],
+      scheduling_preferences: []
+    }
+  });
+
+  // Legacy form data for backward compatibility during transition
   const [formData, setFormData] = useState({
     restaurant: {
       name: '',
@@ -103,6 +174,90 @@ function OnboardingPageContent() {
     { id: 'complete', title: 'Complete Setup', description: 'Review and finish setup' }
   ];
 
+  // Load existing data when component mounts
+  useEffect(() => {
+    const loadExistingData = async () => {
+      if (!session?.user?.email) return;
+
+      try {
+        const orgId = await DatabaseService.getCurrentUserOrganizationId();
+        if (orgId) {
+          setOrganizationId(orgId);
+          await loadAndTransformData(orgId);
+        }
+      } catch (error) {
+        console.log('No existing organization found, starting fresh onboarding');
+      }
+    };
+
+    loadExistingData();
+  }, [session]);
+
+  const loadAndTransformData = async (orgId: string) => {
+    try {
+      // Load organization data
+      const organization = await DatabaseService.getOrganizationById(orgId);
+      if (organization) {
+        const transformedOrg = TransformationService.databaseToUnified({ organization });
+        if (transformedOrg.organization) {
+          setUnifiedData(prev => ({
+            ...prev,
+            organization: { ...prev.organization, ...transformedOrg.organization }
+          }));
+        }
+      }
+
+      // Load business rules
+      const businessRules = await DatabaseService.getBusinessRules(orgId);
+      if (businessRules) {
+        const transformedRules = TransformationService.databaseToUnified({ business_rules: businessRules });
+        if (transformedRules.business_rules) {
+          setUnifiedData(prev => ({
+            ...prev,
+            business_rules: { ...prev.business_rules, ...transformedRules.business_rules }
+          }));
+        }
+      }
+
+      // Load staff data
+      const staff = await DatabaseService.getStaffMembers(orgId);
+      if (staff && staff.length > 0) {
+        const transformedStaff = staff.map(member => ({
+          id: member.id,
+          first_name: member.first_name,
+          last_name: member.last_name,
+          email: member.email,
+          role: member.role,
+          hourly_wage: member.hourly_wage,
+          guaranteed_hours: member.guaranteed_hours,
+          employment_type: member.employment_type,
+          performance_score: member.performance_score,
+          stations: member.stations,
+          availability: member.availability,
+          contact_info: member.contact_info,
+          start_date: member.start_date,
+          status: member.status
+        }));
+        
+        setUnifiedData(prev => ({
+          ...prev,
+          staff: transformedStaff
+        }));
+      }
+
+      // Update legacy form data for backward compatibility
+      updateLegacyFormData();
+    } catch (error) {
+      console.error('Error loading existing data:', error);
+    }
+  };
+
+  const updateLegacyFormData = () => {
+    // Transform unified data back to legacy format for existing components
+    const legacyData = TransformationService.unifiedToOnboarding(unifiedData);
+    setFormData(legacyData);
+  };
+
   const updateFormData = (section: string, data: any) => {
     setFormData(prev => {
       if (section === 'staff') {
@@ -112,6 +267,15 @@ function OnboardingPageContent() {
         // For other sections, merge the data
         return { ...prev, [section]: { ...prev[section as keyof typeof prev], ...data } };
       }
+    });
+
+    // Also update unified data structure
+    setUnifiedData(prev => {
+      const updatedUnified = TransformationService.onboardingToUnified({
+        ...formData,
+        [section]: section === 'staff' ? data : { ...formData[section as keyof typeof formData], ...data }
+      });
+      return updatedUnified;
     });
   };
 
@@ -153,12 +317,22 @@ function OnboardingPageContent() {
       
       console.log('Creating organization with user:', { userEmail, userName });
       
+      // Use unified data structure
+      const orgData = unifiedData.organization;
+      
       // Create user and organization using the database function
       const org = await DatabaseService.createOrganizationWithUser({
-        name: formData.restaurant.name,
-        type: formData.restaurant.type,
-        timezone: formData.restaurant.timezone,
-        operating_hours: formData.restaurant.operatingHours,
+        name: orgData.name,
+        type: orgData.type,
+        timezone: orgData.timezone,
+        operating_hours: {
+          ...orgData.operating_hours,
+          address: orgData.address,
+          phone: orgData.phone,
+          email: orgData.email,
+          cuisine_type: orgData.cuisine_type,
+          capacity: orgData.capacity
+        },
         user_email: userEmail,
         user_name: userName
       });
@@ -288,26 +462,55 @@ function OnboardingPageContent() {
         console.error('No organization ID available');
         return;
       }
-      await DatabaseService.createBusinessRules({
+      
+      // Use unified data structure
+      const businessRulesData = unifiedData.business_rules;
+      
+      // Transform to database format
+      const dbFormat = {
         organization_id: organizationId,
-        min_staffing_requirements: formData.businessRules.minStaffing,
+        min_staffing_requirements: {
+          min_staff_per_shift: Math.max(...Object.values(businessRulesData.min_staffing)),
+          station_requirements: businessRulesData.min_staffing
+        },
         labor_cost_management: {
-          max_overtime: formData.businessRules.maxOvertime,
-          target_labor_cost: formData.businessRules.targetLaborCost
+          max_hours_per_week: businessRulesData.max_overtime,
+          target_labor_cost: businessRulesData.target_labor_cost,
+          overtime_threshold: businessRulesData.max_overtime
         },
-        break_requirements: formData.businessRules.breakRequirements,
+        break_requirements: {
+          break_requirements: `${businessRulesData.break_requirements.meal}-minute meal break, ${businessRulesData.break_requirements.rest}-minute rest break`,
+          meal_break_minutes: businessRulesData.break_requirements.meal,
+          rest_break_minutes: businessRulesData.break_requirements.rest
+        },
         shift_constraints: {
-          consecutive_days: formData.businessRules.consecutiveDays,
-          min_shift_length: formData.businessRules.minShiftLength,
-          max_shift_length: formData.businessRules.maxShiftLength,
-          weekend_rotation: formData.businessRules.weekendRotation,
-          holiday_pay: formData.businessRules.holidayPay
+          consecutive_days_limit: businessRulesData.consecutive_days,
+          preferred_shift_length: businessRulesData.min_shift_length,
+          max_shift_length: businessRulesData.max_shift_length,
+          weekend_rotation: businessRulesData.weekend_rotation,
+          holiday_pay: businessRulesData.holiday_pay
         },
-        additional_policies: {}
-      });
-      console.log('Business rules saved successfully');
+        additional_policies: businessRulesData.additional_policies
+      };
+      
+      console.log('Saving business rules:', dbFormat);
+      
+      // Check if business rules already exist
+      const existingRules = await DatabaseService.getBusinessRules(organizationId);
+      
+      if (existingRules) {
+        // Update existing rules
+        await DatabaseService.updateBusinessRulesByOrganization(organizationId, dbFormat);
+        console.log('Business rules updated successfully');
+      } else {
+        // Create new rules
+        await DatabaseService.createBusinessRules(dbFormat);
+        console.log('Business rules created successfully');
+      }
+      
     } catch (error) {
-      console.error('Error saving business rules:', error);
+      console.error('Error saving business rules data:', error);
+      throw error;
     } finally {
       setIsLoading(false);
     }

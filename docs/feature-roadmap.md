@@ -40,6 +40,43 @@ This document tracks all features, fixes, and improvements identified during dev
 **Estimated Effort:** 1-2 days
 **Priority:** 🔴 **CRITICAL**
 
+### **4. Onboarding Wizard & Business Rules Synchronization**
+**Status:** 🔴 **CRITICAL - Needs Immediate Attention**
+**Issue:** Data structures mismatch between onboarding wizard and Business Rules pages
+
+**Current Problem:**
+- Onboarding wizard uses different data structures than Business Rules pages
+- Data entered in onboarding doesn't appear in Business Rules, and vice versa
+- Two separate interfaces for the same business data
+- Users cannot edit or update information entered during onboarding
+
+**Impact:**
+- Core functionality broken - users can't edit their setup data
+- Data inconsistency between different parts of the application
+- Poor user experience and confusion
+- Potential data loss when trying to update information
+
+**Root Cause Analysis:**
+- **Onboarding Wizard:** Uses `OnboardingStaffMember` interface with `firstName`, `lastName`, `hourlyWage`
+- **Business Rules:** Uses different interfaces and data structures
+- **Database Schema:** Both try to save to same tables but with different field mappings
+- **Data Flow:** No unified data transformation layer between the two interfaces
+
+**Proposed Solution:**
+- **Phase 1:** Create unified data interfaces that both components can use
+- **Phase 2:** Implement data transformation layer to bridge the gap
+- **Phase 3:** Update both onboarding and Business Rules to use unified structures
+- **Phase 4:** Add bidirectional sync to ensure data consistency
+
+**Files to Modify:**
+- `src/app/onboarding/page.tsx` - Update data structures
+- `src/app/dashboard/business-rules/*/page.tsx` - Unify interfaces
+- `src/lib/services/database.ts` - Add transformation methods
+- Create new unified interfaces and types
+
+**Estimated Effort:** 1-2 days
+**Priority:** 🔴 **CRITICAL**
+
 ### **2. Business Information Page Data Saving**
 **Status:** 🔴 **CRITICAL - Needs Immediate Attention**
 **Issue:** Business Information page cannot save data due to database schema mismatch
@@ -293,10 +330,11 @@ This document tracks all features, fixes, and improvements identified during dev
 
 ### **This Week:**
 1. **🔴 CRITICAL:** Address Onboarding Wizard synchronization
-2. **🔴 CRITICAL:** Fix Business Information page data saving
-3. **🔴 CRITICAL:** Fix AI Schedule Generation JSON truncation
-4. **🧪 Testing:** Verify staff CRUD operations
-5. **📊 Monitoring:** Check AI schedule generation performance
+2. **🔴 CRITICAL:** Fix Business Information page data saving ✅ **COMPLETED**
+3. **🔴 CRITICAL:** Fix AI Schedule Generation JSON truncation ✅ **COMPLETED**
+4. **🟡 MEDIUM:** Implement Roles & Stations Management ✅ **COMPLETED**
+5. **🧪 Testing:** Verify staff CRUD operations
+6. **📊 Monitoring:** Check AI schedule generation performance
 
 ### **Next Week:**
 1. **🔧 Polish:** Minor UI/UX improvements
