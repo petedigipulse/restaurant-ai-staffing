@@ -329,6 +329,42 @@ export default function HistoricalDataPage() {
               >
                 📥 Download Template
               </Button>
+              <Button 
+                variant="outline" 
+                onClick={async () => {
+                  console.log('🔍 Debug: Current state');
+                  console.log('📊 Historical data:', historicalData.length, 'records');
+                  console.log('📦 Import groups:', importGroups.length, 'groups');
+                  console.log('🏢 Organization ID:', organizationId);
+                  if (historicalData.length > 0) {
+                    console.log('📅 Sample data:', historicalData.slice(0, 3));
+                  }
+                  if (organizationId) {
+                    try {
+                      const data = await DatabaseService.getAllHistoricalData(organizationId);
+                      console.log('🔍 Database check result:', {
+                        totalRecords: data?.length,
+                        sampleRecords: data?.slice(0, 3),
+                        lastRecords: data?.slice(-3)
+                      });
+                    } catch (error) {
+                      console.error('🔍 Database check failed:', error);
+                    }
+                  }
+                }}
+                className="px-4 py-2"
+              >
+                🔍 Debug
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setMessage({ type: 'success', text: 'Test message - Debug area is working!' });
+                }}
+                className="px-4 py-2"
+              >
+                🧪 Test Message
+              </Button>
               <input
                 type="file"
                 accept=".csv"
