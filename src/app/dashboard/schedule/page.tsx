@@ -760,7 +760,7 @@ export default function SchedulePage() {
         });
         
         // Update the schedule with AI-generated assignments
-        const aiSchedule = result.schedule;
+        const aiSchedule = result.data?.optimizedSchedule || result.optimizedSchedule;
         const updatedSchedule = scheduleDays.map(day => {
           const aiDay = aiSchedule[day.day.toLowerCase()];
           if (aiDay) {
@@ -856,7 +856,36 @@ export default function SchedulePage() {
         });
 
         setScheduleDays(updatedSchedule);
-        setConflictAlert(`🎉 AI Schedule Generated! ${result.reasoning ? 'Reasoning: ' + result.reasoning.substring(0, 100) + '...' : ''} Expected Efficiency: ${result.metrics?.expectedEfficiency}%, Cost Savings: $${result.metrics?.costSavings}`);
+        
+        // Calculate actual labor cost and hours from the generated schedule
+        let totalLaborCost = 0;
+        let totalHours = 0;
+        
+        updatedSchedule.forEach(day => {
+          (['lunch', 'dinner'] as const).forEach(shiftType => {
+            const shift = day[shiftType];
+            shift.stations.forEach((station: any) => {
+              if (station.assignedStaff) {
+                station.assignedStaff.forEach((staff: any) => {
+                  // Calculate cost for this staff member (assuming 4-hour shifts)
+                  const shiftHours = 4; // Lunch and dinner shifts are typically 4 hours each
+                  const staffCost = (staff.hourly_wage || 25) * shiftHours;
+                  totalLaborCost += staffCost;
+                  totalHours += shiftHours;
+                });
+              }
+            });
+          });
+        });
+        
+        // Update the AI optimization report with calculated values
+        setAiOptimizationReport((prev: any) => ({
+          ...prev,
+          totalLaborCost: Math.round(totalLaborCost * 100) / 100, // Round to 2 decimal places
+          totalHours: totalHours
+        }));
+        
+        setConflictAlert(`🎉 AI Schedule Generated! ${result.reasoning ? 'Reasoning: ' + result.reasoning.substring(0, 100) + '...' : ''} Expected Efficiency: ${result.metrics?.expectedEfficiency}%, Cost Savings: $${result.metrics?.costSavings}, Total Labor Cost: $${totalLaborCost.toFixed(2)}, Total Hours: ${totalHours}`);
         
         // Reload the schedule from database to ensure consistency
         await loadExistingSchedule(organizationId);
