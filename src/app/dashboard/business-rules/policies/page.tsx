@@ -15,11 +15,11 @@ interface BusinessRules {
   min_staffing_requirements?: any;
   labor_cost_management?: any;
   shift_constraints?: any;
-  additional_policies?: {
-    staffing_guidelines?: string;
-    cost_optimization?: string;
-    compliance_requirements?: string;
-    custom_policies?: string[];
+  additional_policies: {
+    staffing_guidelines: string[];
+    cost_optimization: string[];
+    compliance_requirements: string[];
+    custom_policies: string[];
   };
 }
 
@@ -53,7 +53,27 @@ export default function BusinessPoliciesPage() {
               min_staffing_requirements: rules.min_staffing_requirements || {},
               labor_cost_management: rules.labor_cost_management || {},
               shift_constraints: rules.shift_constraints || {},
-              additional_policies: rules.additional_policies || {}
+              additional_policies: rules.additional_policies || {
+                staffing_guidelines: [
+                  'Ensure adequate coverage for all stations during peak hours',
+                  'Balance workload across staff members',
+                  'Consider staff performance and experience levels',
+                  'Maintain minimum staffing requirements for safety'
+                ],
+                cost_optimization: [
+                  'Monitor overtime costs and minimize excessive hours',
+                  'Balance staff costs with service quality',
+                  'Use performance data to optimize scheduling',
+                  'Consider seasonal demand patterns'
+                ],
+                compliance_requirements: [
+                  'Follow local labor laws and regulations',
+                  'Ensure proper break and rest periods',
+                  'Maintain accurate time and attendance records',
+                  'Comply with minimum wage requirements'
+                ],
+                custom_policies: []
+              }
             });
           } else {
             // Set default values if no rules exist
@@ -62,7 +82,28 @@ export default function BusinessPoliciesPage() {
               max_hours_per_week: 40,
               preferred_shift_length: 8,
               overtime_threshold: 40,
-              break_requirements: '30-minute break after 5 hours'
+              break_requirements: '30-minute break after 5 hours',
+              additional_policies: {
+                staffing_guidelines: [
+                  'Ensure adequate coverage for all stations during peak hours',
+                  'Balance workload across staff members',
+                  'Consider staff performance and experience levels',
+                  'Maintain minimum staffing requirements for safety'
+                ],
+                cost_optimization: [
+                  'Monitor overtime costs and minimize excessive hours',
+                  'Balance staff costs with service quality',
+                  'Use performance data to optimize scheduling',
+                  'Consider seasonal demand patterns'
+                ],
+                compliance_requirements: [
+                  'Follow local labor laws and regulations',
+                  'Ensure proper break and rest periods',
+                  'Maintain accurate time and attendance records',
+                  'Comply with minimum wage requirements'
+                ],
+                custom_policies: []
+              }
             });
           }
         }
@@ -79,6 +120,51 @@ export default function BusinessPoliciesPage() {
 
   const handleBusinessRulesChange = (field: keyof BusinessRules, value: any) => {
     setBusinessRules(prev => prev ? { ...prev, [field]: value } : null);
+  };
+
+  const handlePolicyChange = (category: keyof BusinessRules['additional_policies'], index: number, value: string) => {
+    setBusinessRules(prev => {
+      if (!prev) return null;
+      const policies = [...(prev.additional_policies?.[category] || [])];
+      policies[index] = value;
+      return {
+        ...prev,
+        additional_policies: {
+          ...prev.additional_policies,
+          [category]: policies
+        }
+      };
+    });
+  };
+
+  const addPolicy = (category: keyof BusinessRules['additional_policies']) => {
+    setBusinessRules(prev => {
+      if (!prev) return null;
+      const policies = [...(prev.additional_policies?.[category] || [])];
+      policies.push(''); // Add an empty string for new policy
+      return {
+        ...prev,
+        additional_policies: {
+          ...prev.additional_policies,
+          [category]: policies
+        }
+      };
+    });
+  };
+
+  const removePolicy = (category: keyof BusinessRules['additional_policies'], index: number) => {
+    setBusinessRules(prev => {
+      if (!prev) return null;
+      const policies = [...(prev.additional_policies?.[category] || [])];
+      policies.splice(index, 1);
+      return {
+        ...prev,
+        additional_policies: {
+          ...prev.additional_policies,
+          [category]: policies
+        }
+      };
+    });
   };
 
   const handleCustomPolicyChange = (index: number, value: string) => {
@@ -326,35 +412,98 @@ export default function BusinessPoliciesPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Additional Policies</h2>
           
-          <div className="space-y-4">
+          <div className="space-y-6">
+            {/* Staffing Guidelines */}
             <div className="p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-medium text-gray-900 mb-2">Staffing Guidelines</h3>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>• Ensure adequate coverage for all stations during peak hours</li>
-                <li>• Balance workload across staff members</li>
-                <li>• Consider staff performance and experience levels</li>
-                <li>• Maintain minimum staffing requirements for safety</li>
-              </ul>
+              <h3 className="font-medium text-gray-900 mb-3">Staffing Guidelines</h3>
+              <div className="space-y-2">
+                {businessRules.additional_policies?.staffing_guidelines?.map((policy, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <span className="text-gray-500">•</span>
+                    <input
+                      type="text"
+                      value={policy}
+                      onChange={(e) => handlePolicyChange('staffing_guidelines', index, e.target.value)}
+                      className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                      placeholder="Enter staffing guideline..."
+                    />
+                    <button
+                      onClick={() => removePolicy('staffing_guidelines', index)}
+                      className="px-2 py-1 text-red-600 hover:text-red-800 text-sm"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => addPolicy('staffing_guidelines')}
+                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                >
+                  + Add Guideline
+                </button>
+              </div>
             </div>
             
+            {/* Cost Optimization */}
             <div className="p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-medium text-gray-900 mb-2">Cost Optimization</h3>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>• Monitor overtime costs and minimize excessive hours</li>
-                <li>• Balance staff costs with service quality</li>
-                <li>• Use performance data to optimize scheduling</li>
-                <li>• Consider seasonal demand patterns</li>
-              </ul>
+              <h3 className="font-medium text-gray-900 mb-3">Cost Optimization</h3>
+              <div className="space-y-2">
+                {businessRules.additional_policies?.cost_optimization?.map((policy, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <span className="text-gray-500">•</span>
+                    <input
+                      type="text"
+                      value={policy}
+                      onChange={(e) => handlePolicyChange('cost_optimization', index, e.target.value)}
+                      className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                      placeholder="Enter cost optimization policy..."
+                    />
+                    <button
+                      onClick={() => removePolicy('cost_optimization', index)}
+                      className="px-2 py-1 text-red-600 hover:text-red-800 text-sm"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => addPolicy('cost_optimization')}
+                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                >
+                  + Add Policy
+                </button>
+              </div>
             </div>
             
+            {/* Compliance Requirements */}
             <div className="p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-medium text-gray-900 mb-2">Compliance Requirements</h3>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>• Follow local labor laws and regulations</li>
-                <li>• Ensure proper break and rest periods</li>
-                <li>• Maintain accurate time and attendance records</li>
-                <li>• Comply with minimum wage requirements</li>
-              </ul>
+              <h3 className="font-medium text-gray-900 mb-3">Compliance Requirements</h3>
+              <div className="space-y-2">
+                {businessRules.additional_policies?.compliance_requirements?.map((policy, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <span className="text-gray-500">•</span>
+                    <input
+                      type="text"
+                      value={policy}
+                      onChange={(e) => handlePolicyChange('compliance_requirements', index, e.target.value)}
+                      className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                      placeholder="Enter compliance requirement..."
+                    />
+                    <button
+                      onClick={() => removePolicy('compliance_requirements', index)}
+                      className="px-2 py-1 text-red-600 hover:text-red-800 text-sm"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => addPolicy('compliance_requirements')}
+                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                >
+                  + Add Requirement
+                </button>
+              </div>
             </div>
 
             {/* Custom Policies */}
