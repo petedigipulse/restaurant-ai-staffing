@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DatabaseService } from '@/lib/services/database';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -187,6 +188,30 @@ export async function POST(request: NextRequest) {
       
       console.log('✅ Database save result:', result);
       console.log(`✅ Successfully imported ${historicalData.length} historical data points`);
+
+      // Verify the data was actually saved by checking the database
+      try {
+        console.log('🔍 Verifying data was saved to database...');
+        const { data: verifyData, error: verifyError } = await supabase
+          .from('historical_sales_data')
+          .select('*')
+          .eq('organization_id', organizationId)
+          .gte('created_at', importBatchId)
+          .order('created_at', { ascending: false });
+
+        if (verifyError) {
+          console.error('❌ Database verification failed:', verifyError);
+        } else {
+          console.log('🔍 Verification result:', {
+            expectedCount: historicalData.length,
+            actualCount: verifyData?.length || 0,
+            sampleRecords: verifyData?.slice(0, 3),
+            importBatchId
+          });
+        }
+      } catch (verifyError) {
+        console.error('❌ Database verification error:', verifyError);
+      }
 
       return NextResponse.json({
         success: true,
