@@ -68,6 +68,21 @@ export async function POST(request: NextRequest) {
       
       console.log('📅 Processing row:', { date, time, rowData });
       console.log('🔍 Available columns:', Object.keys(rowData));
+      console.log('🔍 Column values:', {
+        'Total Sales ($)': rowData['Total Sales ($)'],
+        'Total Sales': rowData['Total Sales'],
+        'total_sales': rowData['total_sales'],
+        'Customer Count': rowData['Customer Count'],
+        'customer_count': rowData['customer_count'],
+        'Weather Conditions': rowData['Weather Conditions'],
+        'weather_conditions': rowData['weather_conditions'],
+        'Special Events': rowData['Special Events'],
+        'special_events': rowData['special_events'],
+        'Notes': rowData['Notes'],
+        'notes': rowData['notes'],
+        'Station Breakdown': rowData['Station Breakdown'],
+        'station_breakdown': rowData['station_breakdown']
+      });
       
       if (date) {
         try {
